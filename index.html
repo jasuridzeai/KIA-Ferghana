@@ -1,0 +1,3250 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>KIA Motors Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js?61"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F2F2F7;--card:#FFFFFF;--accent:#1B3A6B;--accent-light:#2A5298;
+  --green:#34C759;--orange:#FF9500;--red:#FF3B30;
+  --text:#1C1C1E;--text2:#8E8E93;--text3:#AEAEB2;
+  --sep:rgba(60,60,67,0.12);--radius:16px;
+  --shadow:0 2px 8px rgba(0,0,0,0.06);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{
+  height:100dvh;width:100%;overflow:hidden;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-variant-numeric:tabular-nums;
+  background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* HEADER */
+.header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:var(--card);
+  padding:12px 16px;padding-top:calc(12px + var(--safe-top));
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:0.5px solid var(--sep);
+}
+.header-left{display:flex;align-items:center;gap:12px}
+.hamburger{
+  background:none;border:none;cursor:pointer;padding:4px;
+  display:flex;align-items:center;justify-content:center;
+}
+.hamburger svg{width:24px;height:24px;color:var(--text)}
+.back-btn{
+  background:none;border:none;cursor:pointer;padding:4px 6px 4px 2px;
+  display:none;align-items:center;gap:4px;color:var(--accent);font-size:15px;font-weight:500;
+}
+.back-btn svg{width:20px;height:20px}
+.back-btn.visible{display:flex}
+.header-title{font-size:17px;font-weight:600;color:var(--text)}
+.kia-logo{
+  font-size:20px;font-weight:800;letter-spacing:2px;color:var(--accent);
+}
+
+/* SIDEBAR */
+.sidebar-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;
+  opacity:0;visibility:hidden;transition:all .3s ease;
+}
+.sidebar-overlay.open{opacity:1;visibility:visible}
+.sidebar{
+  position:fixed;top:0;bottom:0;left:0;width:280px;z-index:201;
+  background:var(--card);transform:translateX(-100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  padding-top:calc(20px + var(--safe-top));
+}
+.sidebar-overlay.open .sidebar{transform:translateX(0)}
+.sidebar-header{
+  padding:20px 24px;display:flex;align-items:center;gap:12px;
+  border-bottom:0.5px solid var(--sep);
+}
+.sidebar-logo{font-size:24px;font-weight:800;letter-spacing:3px;color:var(--accent)}
+.sidebar-subtitle{font-size:13px;color:var(--text2);font-weight:500}
+.sidebar-nav{padding:8px 0;flex:1}
+.sidebar-item{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 24px;cursor:pointer;
+  font-size:16px;font-weight:500;color:var(--text);
+  transition:background .15s;border:none;background:none;width:100%;text-align:left;
+}
+.sidebar-item:hover,.sidebar-item:active{background:var(--bg)}
+.sidebar-item.active{color:var(--accent);font-weight:600}
+.sidebar-item svg{width:22px;height:22px;flex-shrink:0}
+
+/* PAGES */
+.pages{
+  position:fixed;
+  top:0;bottom:0;left:0;right:0;
+  padding-top:calc(52px + var(--safe-top));
+  padding-bottom:calc(60px + var(--safe-bottom));
+  overflow:hidden;
+}
+.page{
+  display:none;height:100%;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:16px 0 24px;
+}
+.page.active{display:block}
+
+/* REPORT */
+.r-kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 10px}
+.r-kpi{background:var(--card);border-radius:var(--radius);padding:14px;text-align:center;box-shadow:var(--shadow)}
+.r-kpi-lbl{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:4px}
+.r-kpi-val{font-size:22px;font-weight:700;color:var(--text)}
+.r-kpi-sub{font-size:12px;color:var(--text2);margin-top:2px}
+.r-row{display:flex;align-items:center;padding:12px 0;border-bottom:0.5px solid var(--sep)}
+.r-row:last-child{border-bottom:none}
+.r-pos{width:24px;font-size:13px;font-weight:700;color:var(--text2);flex-shrink:0}
+.r-pct{font-size:14px;font-weight:700;min-width:44px;text-align:right;flex-shrink:0}
+
+/* TABBAR */
+.tabbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:var(--card);
+  border-top:0.5px solid var(--sep);
+  display:flex;
+  padding-bottom:var(--safe-bottom);
+}
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:2px;padding:8px 0;cursor:pointer;
+  background:none;border:none;
+  color:var(--text3);font-size:10px;font-weight:500;
+  transition:color .2s;
+}
+.tab svg{width:24px;height:24px}
+.tab.active{color:var(--accent)}
+.tab.active svg{color:var(--accent)}
+
+/* CARDS */
+.card{
+  background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin:0 16px 12px;padding:20px;
+}
+.card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+
+/* LARGE TITLE */
+.large-title{
+  font-size:28px;font-weight:700;color:var(--text);
+  padding:4px 20px 4px;
+}
+.large-subtitle{
+  font-size:15px;color:var(--text2);padding:0 20px 16px;font-weight:500;
+}
+
+/* HERO CARD */
+.hero{
+  background:linear-gradient(135deg,#1B3A6B 0%,#2A5298 100%);
+  color:#fff;text-align:center;padding:28px 20px;
+}
+.hero .card-title{color:rgba(255,255,255,0.7)}
+.progress-ring-wrap{position:relative;display:inline-block;margin:8px 0 12px}
+.progress-ring circle{transition:stroke-dashoffset .8s ease-out}
+.progress-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;
+}
+.progress-pct{font-size:36px;font-weight:800;line-height:1}
+.progress-label{font-size:12px;opacity:.7;margin-top:4px;font-weight:500}
+.hero-stats{display:flex;justify-content:center;gap:32px;margin-top:8px}
+.hero-stat-val{font-size:20px;font-weight:700}
+.hero-stat-lbl{font-size:11px;opacity:.7;margin-top:2px}
+
+/* STAT CARDS ROW */
+.stats-row{display:flex;gap:12px;padding:0 16px;margin-bottom:12px}
+.stat-card{
+  flex:1;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:16px;
+}
+.stat-card-val{font-size:24px;font-weight:700;margin-bottom:2px}
+.stat-card-lbl{font-size:12px;color:var(--text2);font-weight:500}
+
+/* SEGMENT BARS */
+.segment{margin-bottom:16px}
+.segment-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.segment-name{font-size:15px;font-weight:600}
+.segment-pct{font-size:15px;font-weight:700}
+.progress-bar{
+  height:8px;background:var(--bg);border-radius:4px;overflow:hidden;
+}
+.progress-bar-fill{
+  height:100%;border-radius:4px;transition:width .6s ease-out;min-width:0;
+}
+.segment-detail{
+  display:flex;justify-content:space-between;margin-top:6px;
+  font-size:12px;color:var(--text2);
+}
+
+/* SUMMARY TABLE */
+.summary-table{width:100%;border-collapse:collapse}
+.summary-table th{
+  text-align:left;font-size:12px;font-weight:600;color:var(--text2);
+  padding:8px 0;border-bottom:1px solid var(--sep);
+}
+.summary-table td{
+  padding:10px 0;font-size:14px;border-bottom:0.5px solid var(--sep);
+}
+.summary-table td:last-child{text-align:right;font-weight:600}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.form-input,.form-select{
+  width:100%;padding:12px 16px;border:1px solid var(--sep);
+  border-radius:12px;font-size:16px;font-family:inherit;
+  background:var(--bg);color:var(--text);
+  -webkit-appearance:none;appearance:none;
+  transition:border-color .2s;
+}
+.form-input:focus,.form-select:focus{
+  outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(27,58,107,0.12);
+}
+.form-select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238E8E93' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+  padding-right:36px;
+}
+.form-row{display:flex;gap:12px}
+.form-row .form-group{flex:1}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 24px;border-radius:12px;font-size:16px;font-weight:600;
+  border:none;cursor:pointer;font-family:inherit;
+  transition:transform .1s,opacity .2s;width:100%;
+}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-light)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--sep)}
+.btn-sm{padding:8px 16px;font-size:14px;border-radius:8px;width:auto}
+.btn-green{background:var(--green);color:#fff}
+
+/* SALE HISTORY */
+.sale-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 0;border-bottom:0.5px solid var(--sep);
+}
+.sale-item:last-child{border-bottom:none}
+.sale-info{flex:1}
+.sale-manager{font-size:15px;font-weight:600}
+.sale-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.sale-amount{font-size:15px;font-weight:700;color:var(--accent);text-align:right}
+.sale-qty{font-size:12px;color:var(--text2);text-align:right}
+.sale-delete{
+  background:none;border:none;color:var(--red);cursor:pointer;
+  padding:8px;margin-left:8px;display:flex;
+}
+
+/* PODIUM */
+.podium{
+  display:flex;align-items:flex-end;justify-content:center;
+  gap:8px;padding:20px 16px 0;margin-bottom:20px;
+}
+.podium-item{
+  display:flex;flex-direction:column;align-items:center;
+  flex:1;max-width:120px;
+}
+.podium-item.first{order:0}
+.podium-item.second{order:-1}
+.podium-item.third{order:1}
+.podium-crown{font-size:24px;margin-bottom:4px}
+.podium-avatar{
+  width:48px;height:48px;border-radius:50%;
+  background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:700;margin-bottom:6px;
+}
+.podium-item.first .podium-avatar{
+  width:60px;height:60px;font-size:22px;
+  background:linear-gradient(135deg,#1B3A6B,#2A5298);
+  box-shadow:0 4px 16px rgba(27,58,107,0.3);
+}
+.podium-name{font-size:12px;font-weight:600;text-align:center;margin-bottom:4px;line-height:1.2}
+.podium-val{font-size:11px;color:var(--text2);margin-bottom:6px;text-align:center}
+.podium-bar{
+  width:100%;border-radius:12px 12px 0 0;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:8px;font-size:20px;font-weight:800;color:#fff;
+}
+.podium-item.first .podium-bar{background:linear-gradient(180deg,#1B3A6B,#2A5298);height:100px}
+.podium-item.second .podium-bar{background:linear-gradient(180deg,#4A7CC9,#6B9DE8);height:76px}
+.podium-item.third .podium-bar{background:linear-gradient(180deg,#8DB4F0,#A8C8F5);height:56px}
+
+/* RATING LIST */
+.rating-tabs{display:flex;gap:8px;padding:0 16px;margin-bottom:16px}
+.rating-tab{
+  padding:8px 20px;border-radius:20px;font-size:14px;font-weight:600;
+  border:none;cursor:pointer;background:var(--bg);color:var(--text2);
+  transition:all .2s;
+}
+.rating-tab.active{background:var(--accent);color:#fff}
+.rating-item{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 0;border-bottom:0.5px solid var(--sep);
+}
+.rating-item:last-child{border-bottom:none}
+.rating-pos{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--bg);display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:var(--text2);flex-shrink:0;
+}
+.rating-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:600;flex-shrink:0;
+}
+.rating-info{flex:1}
+.rating-name{font-size:15px;font-weight:600}
+.rating-detail{font-size:12px;color:var(--text2);margin-top:1px}
+.rating-pct{
+  font-size:16px;font-weight:700;text-align:right;
+}
+.rating-sum{font-size:11px;color:var(--text2);text-align:right}
+
+/* PLAN PAGE */
+.plan-month{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  padding:8px 16px 20px;
+}
+.plan-month-label{font-size:17px;font-weight:600;min-width:140px;text-align:center}
+.plan-arrow{
+  background:none;border:none;cursor:pointer;padding:8px;
+  color:var(--accent);display:flex;
+}
+.plan-section{margin-bottom:8px}
+.plan-row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 0;border-bottom:0.5px solid var(--sep);
+}
+.plan-row:last-child{border-bottom:none}
+.plan-row-name{flex:1;font-size:15px;font-weight:500}
+.plan-row-input{
+  flex:1;min-width:0;padding:8px 10px;border:1px solid var(--sep);
+  border-radius:8px;font-size:13px;text-align:right;
+  font-family:inherit;background:var(--bg);
+}
+.plan-row-input:focus{outline:none;border-color:var(--accent)}
+.plan-actions{display:flex;gap:8px;margin-top:4px}
+
+/* SETTINGS */
+.setting-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:0.5px solid var(--sep);
+}
+.setting-item:last-child{border-bottom:none}
+.setting-label{font-size:16px;font-weight:500}
+.setting-desc{font-size:12px;color:var(--text2);margin-top:2px}
+.toggle{
+  width:51px;height:31px;border-radius:16px;
+  background:#E9E9EB;border:none;cursor:pointer;
+  position:relative;transition:background .3s;flex-shrink:0;
+}
+.toggle.on{background:var(--green)}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:27px;height:27px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  transition:transform .3s;
+}
+.toggle.on::after{transform:translateX(20px)}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);
+  z-index:300;display:none;align-items:center;justify-content:center;
+  padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--card);border-radius:var(--radius);
+  padding:28px 24px;max-width:320px;width:100%;text-align:center;
+}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:8px}
+.modal-msg{font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.4}
+.modal-btns{display:flex;gap:12px}
+.modal-btns .btn{flex:1}
+
+/* TOAST */
+.toast{
+  position:fixed;top:calc(20px + var(--safe-top));left:50%;
+  transform:translateX(-50%) translateY(-100px);
+  background:var(--text);color:#fff;
+  padding:12px 24px;border-radius:12px;
+  font-size:14px;font-weight:500;z-index:400;
+  transition:transform .3s ease;
+  box-shadow:0 8px 24px rgba(0,0,0,0.2);
+  max-width:calc(100% - 40px);text-align:center;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:var(--red)}
+.toast.success{background:var(--green)}
+
+/* ADMIN/GUEST MODE */
+.admin-only { display: none !important; }
+body.is-admin .admin-only { display: revert !important; }
+.guest-only { display: revert; }
+body.is-admin .guest-only { display: none !important; }
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.5}
+.empty-text{font-size:15px;font-weight:500}
+
+/* LOADING */
+.loading{text-align:center;padding:40px}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--sep);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;margin:0 auto 12px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* MANAGER PAGE ADD */
+.manager-add-row{
+  display:flex;gap:8px;margin-bottom:16px;
+}
+.manager-add-row .form-input{flex:1}
+
+/* UTILS */
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-16{margin-bottom:16px}
+.px-16{padding-left:16px;padding-right:16px}
+.text-center{text-align:center}
+.color-green{color:var(--green)}.color-orange{color:var(--orange)}
+.color-red{color:var(--red)}.color-accent{color:var(--accent)}
+
+/* ===== STATS PAGE ===== */
+.stats-day-group{margin-bottom:16px}
+.stats-day-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:6px 0 8px;border-bottom:1px solid var(--sep);margin-bottom:6px;
+}
+.stats-day-date{font-size:14px;font-weight:700;color:var(--text)}
+.stats-day-total{font-size:12px;color:var(--text2);font-weight:500}
+.stats-row-item{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 0;border-bottom:0.5px solid var(--sep);
+}
+.stats-row-item:last-child{border-bottom:none}
+.stats-row-mgr{flex:1;font-size:14px;font-weight:600;color:var(--text)}
+.stats-row-data{display:flex;gap:6px}
+.stats-badge{
+  padding:4px 10px;border-radius:8px;font-size:12px;font-weight:600;
+}
+.stats-badge-blue{background:rgba(27,58,107,0.1);color:var(--accent)}
+.stats-badge-green{background:rgba(52,199,89,0.12);color:var(--green)}
+
+/* ===== DASHBOARD NEW ===== */
+.d-date-row{
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:12px 16px 8px;
+}
+.d-date{font-size:15px;font-weight:600;color:var(--text)}
+.d-day-lbl{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px}
+
+.d-hero{
+  margin:0 16px 12px;border-radius:var(--radius);
+  background:linear-gradient(135deg,#1B3A6B 0%,#2A5298 100%);
+  color:#fff;padding:18px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 4px 16px rgba(27,58,107,0.25);
+}
+.d-hero-lbl{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;opacity:0.7;margin-bottom:6px}
+.d-hero-fact{font-size:30px;font-weight:800;line-height:1.1;margin-bottom:5px;letter-spacing:-0.5px}
+.d-hero-sub{font-size:13px;opacity:0.65;font-weight:500}
+.d-hero-right{flex-shrink:0;position:relative;width:72px;height:72px}
+.d-ring-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.d-ring-pct{font-size:15px;font-weight:800;color:#fff}
+
+.d-stats{display:flex;gap:8px;padding:0 16px;margin-bottom:12px}
+.d-stat{
+  flex:1;background:var(--card);border-radius:12px;
+  box-shadow:var(--shadow);padding:10px 6px;text-align:center;
+}
+.d-stat-lbl{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px}
+.d-stat-val{font-size:17px;font-weight:700;color:var(--text);line-height:1.2}
+
+.d-segs{display:flex;gap:8px;padding:0 16px;margin-bottom:4px}
+.d-seg{
+  flex:1;background:var(--card);border-radius:12px;
+  box-shadow:var(--shadow);padding:12px;
+}
+.d-seg-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:8px}
+.d-seg-bar-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text2);margin-bottom:2px}
+.d-seg-pct{font-size:13px;font-weight:700}
+.d-seg-bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin-bottom:12px}
+.d-seg-bar-fill{height:100%;border-radius:3px;transition:width .6s ease-out}
+.d-seg-inf{margin-top:8px;border-top:0.5px solid var(--sep);padding-top:8px}
+.d-seg-inf-row{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.d-seg-inf-k{color:var(--text2)}
+.d-seg-inf-v{color:var(--text);font-weight:600;font-size:13px}
+
+.d-section-lbl{
+  padding:8px 16px 6px;font-size:14px;font-weight:600;
+  color:var(--text2);text-transform:uppercase;letter-spacing:0.6px;
+}
+/* PODIUM */
+.d-podium-wrap{margin:0 16px 16px;background:var(--card);border-radius:var(--radius);padding:20px 12px 16px;box-shadow:var(--shadow);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.d-podium-sub{font-size:13px;color:var(--text2);margin-bottom:16px}
+.d-podium-stage{display:flex;align-items:flex-end;justify-content:center;gap:8px}
+.d-podium-col{display:flex;flex-direction:column;align-items:center;flex:1}
+.d-podium-avatar{width:44px;height:44px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;position:relative}
+.d-podium-avatar.p1{width:52px;height:52px;font-size:16px;background:#1B3A6B}
+.d-podium-avatar.p2{background:#2A5298}
+.d-podium-avatar.p3{background:#3A6BC8;opacity:.85}
+.d-podium-crown{position:absolute;top:-14px;font-size:16px}
+.d-podium-name{font-size:13px;font-weight:600;color:var(--text);text-align:center;margin-bottom:2px;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.d-podium-sum{font-size:12px;color:var(--text2);text-align:center;margin-bottom:6px}
+.d-podium-bar{width:100%;border-radius:8px 8px 0 0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:#fff}
+.d-podium-hint{margin-top:10px;display:flex;align-items:center;justify-content:center;gap:4px;font-size:13px;color:var(--text2)}
+
+.d-svodka-card{
+  margin:0 16px 10px;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:14px 14px 14px;
+}
+.d-svodka-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.d-svodka-title{font-size:15px;font-weight:700;color:var(--text)}
+.d-svodka-plan-lbl{font-size:12.5px;color:var(--text2)}
+.d-svodka-cols{display:flex;gap:8px;margin-top:10px}
+.d-svodka-col{
+  flex:1;padding:10px 10px 8px;
+  background:var(--bg);border-radius:10px;
+}
+.d-svodka-col-lbl{font-size:12.5px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px}
+.d-svodka-row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px}
+.d-svodka-k{color:var(--text2)}
+.d-svodka-v{color:var(--text);font-weight:600}
+.d-svodka-badge{
+  display:inline-block;margin-top:7px;
+  padding:3px 10px;border-radius:10px;
+  font-size:12px;font-weight:700;color:#fff;
+}
+.d-svodka-leas{
+  margin-top:10px;padding:10px;
+  background:var(--bg);border-radius:10px;
+}
+.d-total{
+  margin:0 16px 16px;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:14px 16px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.d-total-lbl{font-size:14px;font-weight:500;color:var(--text)}
+.d-total-val{font-size:13px;font-weight:700;color:var(--text);flex:1;text-align:right;margin-right:8px}
+.d-total-badge{
+  flex-shrink:0;padding:4px 11px;border-radius:10px;
+  font-size:13px;font-weight:700;color:#fff;
+}
+.d-traffic-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;
+  margin:0 16px 16px;
+}
+.d-traffic-card{
+  background:var(--card);border-radius:12px;
+  box-shadow:var(--shadow);padding:12px 14px;
+}
+.d-traffic-lbl{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:4px}
+.d-traffic-val{font-size:22px;font-weight:800;color:var(--text);line-height:1.1}
+.d-traffic-sub{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* SUB-PAGE (iOS Settings style) */
+.subpage-wrap{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:150;
+  background:var(--bg);
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  padding-top:var(--safe-top);
+}
+.subpage-wrap.open{transform:translateX(0)}
+.subpage-header{
+  display:flex;align-items:center;gap:4px;
+  padding:12px 16px;padding-top:calc(12px + var(--safe-top));
+  background:var(--card);border-bottom:0.5px solid var(--sep);
+  position:sticky;top:0;z-index:1;
+}
+.subpage-back{
+  display:flex;align-items:center;gap:2px;
+  background:none;border:none;cursor:pointer;
+  color:var(--accent);font-size:16px;font-weight:500;
+  padding:4px 8px 4px 0;font-family:inherit;
+}
+.subpage-back svg{width:20px;height:20px}
+.subpage-title{font-size:17px;font-weight:600;color:var(--text);flex:1;text-align:center;margin-right:60px}
+.subpage-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 0 32px}
+.settings-nav-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;cursor:pointer;
+  border-bottom:0.5px solid var(--sep);
+  -webkit-tap-highlight-color:transparent;
+}
+.settings-nav-row:last-child{border-bottom:none}
+.settings-nav-row:active{opacity:0.6}
+.settings-nav-chevron{color:var(--text3);flex-shrink:0}
+
+/* SEARCHABLE SELECT */
+.ss-wrap{position:relative}
+.ss-input{width:100%;padding:12px 36px 12px 16px;border:1px solid var(--sep);border-radius:12px;font-size:16px;font-family:inherit;background:var(--bg);color:var(--text);-webkit-appearance:none;appearance:none;transition:border-color .2s;cursor:pointer}
+.ss-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(27,58,107,0.12)}
+.ss-arrow{position:absolute;right:12px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text2)}
+.ss-dropdown{
+  position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:200;
+  background:var(--card);border:1px solid var(--sep);border-radius:12px;
+  max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  display:none;
+}
+.ss-dropdown.open{display:block}
+.ss-option{padding:13px 16px;font-size:15px;cursor:pointer;color:var(--text);transition:background .15s}
+.ss-option:hover,.ss-option:active{background:var(--bg)}
+.ss-option.selected{color:var(--accent);font-weight:600}
+.ss-empty{padding:13px 16px;font-size:14px;color:var(--text2)}
+</style>
+</head>
+<body>
+
+<!-- ADMIN LOGIN MODAL -->
+<div id="adminModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;padding:32px">
+  <div style="width:100%;max-width:340px;background:var(--card);border-radius:20px;padding:28px;box-shadow:0 8px 40px rgba(0,0,0,0.2)">
+    <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px;text-align:center">Вход для администратора</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:20px;text-align:center">Введите пароль для управления данными</div>
+    <input id="loginInput" type="password" placeholder="Пароль"
+      style="width:100%;padding:14px 16px;border:1.5px solid var(--sep);border-radius:12px;font-size:16px;background:var(--bg);color:var(--text);outline:none;box-sizing:border-box;margin-bottom:10px"
+      onkeydown="if(event.key==='Enter')checkLogin()">
+    <div id="loginError" style="display:none;color:#FF3B30;font-size:13px;text-align:center;margin-bottom:10px">Неверный пароль</div>
+    <button onclick="checkLogin()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:10px">Войти</button>
+    <button onclick="closeAdminModal()" style="width:100%;padding:12px;background:transparent;color:var(--text2);border:none;border-radius:12px;font-size:15px;cursor:pointer">Отмена</button>
+  </div>
+</div>
+
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()">
+  <aside class="sidebar" onclick="event.stopPropagation()">
+    <div class="sidebar-header">
+      <div>
+        <div class="sidebar-logo">KIA</div>
+        <div class="sidebar-subtitle">Motors Dashboard</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" data-page="dashboard" onclick="goTo('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Дашборд
+      </button>
+      <button class="sidebar-item" data-page="managers" onclick="goTo('managers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Менеджеры
+      </button>
+      <button class="sidebar-item" data-page="plan" onclick="goTo('plan')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        План
+      </button>
+      <button class="sidebar-item" data-page="report" onclick="goTo('report')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        Отчёт
+      </button>
+      <button class="sidebar-item" data-page="stats" onclick="goTo('stats')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Конверсия
+      </button>
+      <button class="sidebar-item admin-only" data-page="settings" onclick="goTo('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Настройки
+      </button>
+    </nav>
+    <div style="padding:16px;border-top:1px solid var(--sep)">
+      <button class="guest-only" onclick="openAdminModal();closeSidebar()" style="width:100%;padding:12px;background:rgba(27,58,107,0.08);color:var(--accent);border:1.5px solid var(--accent);border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">
+        🔐 Войти как администратор
+      </button>
+      <button class="admin-only" onclick="adminLogout();closeSidebar()" style="width:100%;padding:12px;background:rgba(255,59,48,0.08);color:#FF3B30;border:1.5px solid #FF3B30;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">
+        Выйти из администратора
+      </button>
+    </div>
+  </aside>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <button class="hamburger" id="hamburgerBtn" onclick="openSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <button class="back-btn" id="backBtn" onclick="goBack()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Назад
+    </button>
+    <span class="header-title" id="headerTitle">Дашборд</span>
+  </div>
+  <div class="kia-logo">KIA</div>
+</header>
+
+<!-- PAGES -->
+<div class="pages">
+
+  <!-- DASHBOARD -->
+  <section class="page active" id="pageDashboard">
+
+    <!-- Дата -->
+    <div class="d-date-row">
+      <span class="d-date" id="dDate"></span>
+      <span class="d-day-lbl">Отчётный день</span>
+    </div>
+
+    <!-- Hero card: Факт большой, план маленький снизу -->
+    <div class="d-hero">
+      <div class="d-hero-left">
+        <div class="d-hero-lbl">Факт поступлений</div>
+        <div class="d-hero-fact" id="dHeroFact">0</div>
+        <div class="d-hero-sub" id="dHeroSub">План: 0 · 0 шт</div>
+      </div>
+      <div class="d-hero-right">
+        <svg width="72" height="72" viewBox="0 0 72 72">
+          <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="6"/>
+          <circle id="dRing" cx="36" cy="36" r="30" fill="none" stroke="#fff" stroke-width="6"
+            stroke-linecap="round" stroke-dasharray="188.5" stroke-dashoffset="188.5"
+            transform="rotate(-90 36 36)"/>
+        </svg>
+        <div class="d-ring-center">
+          <span class="d-ring-pct" id="dRingPct">0%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 stat blocks -->
+    <div class="d-stats">
+      <div class="d-stat">
+        <div class="d-stat-lbl">Поступ.</div>
+        <div class="d-stat-val" id="dStatPostu">0%</div>
+      </div>
+      <div class="d-stat">
+        <div class="d-stat-lbl">Прогноз</div>
+        <div class="d-stat-val" id="dStatForecast">0%</div>
+      </div>
+      <div class="d-stat">
+        <div class="d-stat-lbl">Факт шт</div>
+        <div class="d-stat-val" id="dStatFactQty">0</div>
+      </div>
+      <div class="d-stat">
+        <div class="d-stat-lbl">План шт</div>
+        <div class="d-stat-val" id="dStatPlanQty">0</div>
+      </div>
+    </div>
+
+    <!-- CKD + DKD segments side by side -->
+    <div class="d-segs">
+      <div class="d-seg" id="dSegCkd"></div>
+      <div class="d-seg" id="dSegDkd"></div>
+    </div>
+
+    <!-- Сводка -->
+    <div class="d-section-lbl">Сводка</div>
+    <div id="dSvodkaCkd"></div>
+    <div id="dSvodkaDkd"></div>
+
+    <!-- Общий прогноз -->
+    <div class="d-total" id="dTotal"></div>
+
+    <!-- Воронка продаж -->
+    <div class="d-section-lbl">Воронка продаж</div>
+    <div id="dTrafficBlock"></div>
+
+    <!-- Рейтинг менеджеров -->
+    <div class="d-section-lbl">Рейтинг менеджеров</div>
+    <div id="dPodium"></div>
+    <div id="dRatingList" style="margin:0 16px 16px"></div>
+
+  </section>
+
+  <!-- SALES -->
+  <section class="page" id="pageSales">
+    <div class="large-title">Продажи</div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="card-title">Новая продажа</div>
+      <div class="form-group">
+        <label class="form-label">Дата продажи</label>
+        <input class="form-input" type="date" id="saleDate" onclick="toggleDatePicker(this)" onchange="filterSalesByDate()">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Менеджер</label>
+        <div class="ss-wrap">
+          <input class="ss-input" type="text" id="saleManagerInput" placeholder="Поиск менеджера..." autocomplete="off" oninput="ssFilter('saleManager')" onclick="ssToggle('saleManager')" onblur="ssBlur('saleManager')">
+          <input type="hidden" id="saleManager">
+          <svg class="ss-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <div class="ss-dropdown" id="saleManagerDropdown"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Сегмент</label>
+        <select class="form-select" id="saleSegment" onchange="updateTrimsBySegment()">
+          <option value="CKD">CKD</option>
+          <option value="DKD">DKD</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Комплектация</label>
+        <div class="ss-wrap">
+          <input class="ss-input" type="text" id="saleTrimInput" placeholder="Поиск комплектации..." autocomplete="off" oninput="ssFilter('saleTrim')" onclick="ssToggle('saleTrim')" onblur="ssBlur('saleTrim')">
+          <input type="hidden" id="saleTrim">
+          <svg class="ss-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <div class="ss-dropdown" id="saleTrimDropdown"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Цвет</label>
+        <div class="ss-wrap">
+          <input class="ss-input" type="text" id="saleColorInput" placeholder="Поиск цвета..." autocomplete="off" oninput="ssFilter('saleColor')" onclick="ssToggle('saleColor')" onblur="ssBlur('saleColor')">
+          <input type="hidden" id="saleColor">
+          <svg class="ss-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <div class="ss-dropdown" id="saleColorDropdown"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Сумма</label>
+          <input class="form-input" type="text" id="saleSum" placeholder="0" inputmode="numeric" oninput="formatSumInput(this)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Кол-во</label>
+          <input class="form-input" type="number" id="saleQty" placeholder="1" min="1" step="1" value="1">
+        </div>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px;padding:4px 0">
+        <input type="checkbox" id="saleLeasing" style="width:20px;height:20px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+        <label for="saleLeasing" style="font-size:15px;font-weight:500;cursor:pointer">Продажа в лизинг</label>
+      </div>
+      <button class="btn btn-primary" onclick="addSale()">Добавить продажу</button>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0" id="salesHistoryTitle">История продаж</div>
+        <button id="salesAllBtn" onclick="toggleAllSales()" style="font-size:12px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">Все записи</button>
+      </div>
+      <div id="salesList"></div>
+    </div>
+  </section>
+
+  <!-- MANAGERS -->
+  <section class="page" id="pageManagers">
+    <div class="large-title">Менеджеры</div>
+    <div class="large-subtitle">Рейтинг за текущий месяц</div>
+
+    <div id="podiumWrap"></div>
+
+    <div class="rating-tabs" id="ratingTabs">
+      <button class="rating-tab active" data-seg="all" onclick="filterRating('all')">Все</button>
+      <button class="rating-tab" data-seg="CKD" onclick="filterRating('CKD')">CKD</button>
+      <button class="rating-tab" data-seg="DKD" onclick="filterRating('DKD')">DKD</button>
+    </div>
+
+    <div class="card">
+      <div id="ratingList"></div>
+    </div>
+
+    <div id="mgrKpiCards"></div>
+  </section>
+
+  <!-- PLAN -->
+  <section class="page" id="pagePlan">
+    <div class="large-title">План</div>
+
+    <div class="plan-month">
+      <button class="plan-arrow" onclick="changePlanMonth(-1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="plan-month-label" id="planMonthLabel"></div>
+      <button class="plan-arrow" onclick="changePlanMonth(1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <div class="card plan-section">
+      <div class="card-title">Общий план (итого)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CKD — Сумма</label>
+          <input class="form-input" type="text" inputmode="numeric" id="planCkdSum" placeholder="0" oninput="formatPlanSum(this)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CKD — Кол-во</label>
+          <input class="form-input" type="text" inputmode="numeric" id="planCkdQty" placeholder="0">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">DKD — Сумма</label>
+          <input class="form-input" type="text" inputmode="numeric" id="planDkdSum" placeholder="0" oninput="formatPlanSum(this)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">DKD — Кол-во</label>
+          <input class="form-input" type="text" inputmode="numeric" id="planDkdQty" placeholder="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">План по менеджерам</div>
+      <div class="manager-add-row" style="margin-bottom:12px">
+        <input class="form-input" id="planNewManagerName" placeholder="Имя Фамилия">
+        <button class="btn btn-primary btn-sm" onclick="addManagerFromPlan()">+</button>
+      </div>
+      <div id="planManagersList"></div>
+    </div>
+
+    <div class="px-16 mt-16">
+      <button class="btn btn-primary" onclick="savePlans()">Сохранить планы</button>
+    </div>
+    <div class="px-16 mt-8">
+      <button class="btn btn-secondary" onclick="confirmNewMonth()">Новый месяц</button>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="page" id="pageSettings">
+    <div class="large-title">Настройки</div>
+    <div class="large-subtitle">Управление приложением</div>
+
+    <div class="card">
+      <div class="settings-nav-row" onclick="openSubPage('trims')">
+        <div class="setting-label">Комплектации</div>
+        <svg class="settings-nav-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      <div class="settings-nav-row" onclick="openSubPage('colors')">
+        <div class="setting-label">Цвета</div>
+        <svg class="settings-nav-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Уведомления</div>
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Push-уведомления</div>
+          <div class="setting-desc">Оповещения о новых продажах</div>
+        </div>
+        <button class="toggle" id="toggleNotif" onclick="toggleNotifications()"></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Действия</div>
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Новый месяц</div>
+          <div class="setting-desc">Сброс планов на новый месяц</div>
+        </div>
+        <button class="btn btn-sm btn-secondary" onclick="confirmNewMonth()">Начать</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Версия</div>
+          <div class="setting-desc">KIA Dashboard v1.0</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REPORT -->
+  <section class="page" id="pageReport">
+    <div class="large-title">Отчёт</div>
+    <div class="large-subtitle" id="reportSubtitle"></div>
+
+    <div class="plan-month">
+      <button class="plan-arrow" onclick="changeReportMonth(-1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="plan-month-label" id="reportMonthLabel"></div>
+      <button class="plan-arrow" onclick="changeReportMonth(1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <!-- KPI cards -->
+    <div id="reportKpi"></div>
+
+    <!-- Plan donut + segments bar -->
+    <div class="d-section-lbl">Выполнение плана</div>
+    <div style="padding:0 16px 4px">
+      <div class="card" style="padding:16px;display:flex;gap:16px;align-items:center">
+        <div style="position:relative;width:110px;height:110px;flex-shrink:0">
+          <canvas id="chartPlan" width="110" height="110"></canvas>
+          <div id="chartPlanCenter" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none"></div>
+        </div>
+        <div id="chartPlanLegend" style="flex:1"></div>
+      </div>
+    </div>
+    <div id="reportSegments"></div>
+
+    <!-- Traffic -->
+    <div class="d-section-lbl">Трафик и конверсия</div>
+    <div id="reportTraffic"></div>
+    <div style="padding:0 16px 4px">
+      <div class="card" style="padding:16px 12px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Динамика за месяц</div>
+        <canvas id="chartTraffic" height="150"></canvas>
+      </div>
+    </div>
+
+    <!-- Funnel -->
+    <div class="d-section-lbl">Воронка продаж</div>
+    <div id="reportFunnel"></div>
+
+    <!-- Managers -->
+    <div class="d-section-lbl">По менеджерам</div>
+    <div style="padding:0 16px 4px">
+      <div class="card" style="padding:16px 12px">
+        <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Продажи по менеджерам</div>
+        <canvas id="chartManagers" height="160"></canvas>
+      </div>
+    </div>
+    <div id="reportManagers"></div>
+
+    <!-- Leasing ranking -->
+    <div class="d-section-lbl">Рейтинг конверсии</div>
+    <div id="reportConvRating"></div>
+
+    <!-- Trims -->
+    <div class="d-section-lbl">По комплектациям</div>
+    <div id="reportTrims"></div>
+
+    <!-- Colors -->
+    <div class="d-section-lbl">По цветам</div>
+    <div id="reportColors"></div>
+  </section>
+
+  <!-- STATS -->
+  <section class="page" id="pageStats">
+    <div class="large-title">Конверсия</div>
+    <div class="large-subtitle" id="statsSubtitle"></div>
+
+    <div class="card">
+      <div class="card-title">Ежедневный отчёт</div>
+      <div class="form-group">
+        <label class="form-label">Дата</label>
+        <input class="form-input" type="date" id="statDate" onchange="filterStatsByDate()" onclick="toggleDatePicker(this)">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Менеджер</label>
+        <div class="ss-wrap">
+          <input class="ss-input" type="text" id="statManagerInput" placeholder="Поиск менеджера..." autocomplete="off" oninput="ssFilter('statManager')" onclick="ssToggle('statManager')" onblur="ssBlur('statManager')">
+          <input type="hidden" id="statManager">
+          <svg class="ss-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <div class="ss-dropdown" id="statManagerDropdown"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Трафик</label>
+          <input class="form-input" type="number" id="statTraffic" placeholder="0" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Тест-драйв</label>
+          <input class="form-input" type="number" id="statTestDrive" placeholder="0" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Договоров</label>
+          <input class="form-input" type="number" id="statContracts" placeholder="0" min="0" step="1">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addStat()">Сохранить</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title" id="statsListTitle">История отчётов</div>
+      <div id="statsList"></div>
+    </div>
+  </section>
+
+</div>
+
+<!-- SUB-PAGE -->
+<div class="subpage-wrap" id="subpageWrap">
+  <div class="subpage-header">
+    <button class="subpage-back" onclick="closeSubPage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      Назад
+    </button>
+    <span class="subpage-title" id="subpageTitle"></span>
+  </div>
+  <div class="subpage-body">
+    <!-- Managers sub-page -->
+    <div id="subManagers" style="display:none;padding:0 16px">
+      <div class="manager-add-row" style="margin-top:8px">
+        <input class="form-input" id="newManagerName" placeholder="Имя Фамилия">
+        <button class="btn btn-primary btn-sm" onclick="addManager()">+</button>
+      </div>
+      <div id="mgrManageList"></div>
+    </div>
+    <!-- Trims sub-page -->
+    <div id="subTrims" style="display:none;padding:0 16px">
+      <div class="manager-add-row" style="margin-top:8px">
+        <input class="form-input" id="newTrimName" placeholder="Например: Luxe, Prestige...">
+        <button class="btn btn-primary btn-sm" onclick="addTrim()">+</button>
+      </div>
+      <div id="trimManageList"></div>
+    </div>
+    <!-- Colors sub-page -->
+    <div id="subColors" style="display:none;padding:0 16px">
+      <div class="manager-add-row" style="margin-top:8px">
+        <input class="form-input" id="newColorName" placeholder="Например: Белый, Чёрный...">
+        <button class="btn btn-primary btn-sm" onclick="addColor()">+</button>
+      </div>
+      <div id="colorManageList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TABBAR -->
+<nav class="tabbar">
+  <button class="tab active" data-page="dashboard" onclick="goTo('dashboard')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Дашборд</span>
+  </button>
+  <button class="tab admin-only" data-page="sales" onclick="goTo('sales')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    <span>Продажи</span>
+  </button>
+  <button class="tab" data-page="report" onclick="goTo('report')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <span>Отчёт</span>
+  </button>
+</nav>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns">
+      <button class="btn btn-sm btn-secondary" onclick="closeModal(false)">Отмена</button>
+      <button class="btn btn-sm btn-primary" id="modalConfirmBtn" onclick="closeModal(true)">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================== CONFIG =====================
+const SUPABASE_URL = 'https://iunucdylmtolojyawjha.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1bnVjZHlsbXRvbG9qeWF3amhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3OTQ5MTAsImV4cCI6MjA5MDM3MDkxMH0.GHx-kZ7PUsIxjteFXvKCFYYa93aFlf8GGHNW4iKQ2kY';
+
+// ===================== INIT =====================
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+let sb = null;
+let useLocal = true; // fallback to localStorage
+
+try {
+  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    useLocal = false;
+  }
+} catch(e) { console.warn('Supabase not configured, using localStorage'); }
+
+// ===================== LOCAL STORAGE DB =====================
+const LS = {
+  _key(table) { return 'kia_' + table; },
+  _read(table) {
+    try { return JSON.parse(localStorage.getItem(this._key(table))) || []; }
+    catch { return []; }
+  },
+  _write(table, data) { localStorage.setItem(this._key(table), JSON.stringify(data)); },
+
+  async select(table, filters = {}) {
+    let data = this._read(table);
+    const special = ['_gte', '_lt', '_order'];
+    Object.entries(filters).forEach(([k, v]) => {
+      if (!special.includes(k)) data = data.filter(row => row[k] == v);
+    });
+    if (filters._gte) data = data.filter(r => r[filters._gte[0]] >= filters._gte[1]);
+    if (filters._lt) data = data.filter(r => r[filters._lt[0]] < filters._lt[1]);
+    if (filters._order) {
+      const [field, dir] = filters._order;
+      data.sort((a, b) => dir === 'asc' ? (a[field] > b[field] ? 1 : -1) : (a[field] < b[field] ? 1 : -1));
+    }
+    return { data, error: null };
+  },
+
+  async insert(table, rows) {
+    const data = this._read(table);
+    const arr = Array.isArray(rows) ? rows : [rows];
+    arr.forEach(row => {
+      if (!row.id) row.id = crypto.randomUUID();
+      if (!row.created_at && table !== 'plans') row.created_at = new Date().toISOString();
+      data.push(row);
+    });
+    this._write(table, data);
+    return { data: arr, error: null };
+  },
+
+  async delete(table, filters = {}) {
+    let data = this._read(table);
+    const before = data.length;
+    Object.entries(filters).forEach(([k, v]) => { data = data.filter(row => row[k] != v); });
+    this._write(table, data);
+    return { error: null };
+  },
+
+  async deleteMulti(table, filters = {}) {
+    let data = this._read(table);
+    data = data.filter(row => {
+      return !Object.entries(filters).every(([k, v]) => row[k] == v);
+    });
+    this._write(table, data);
+    return { error: null };
+  },
+
+  init() {
+    const managers = this._read('managers');
+    if (!managers.length) {
+      const defaults = [
+        'Дилноза Юсупова', 'Алишер Каримов', 'Бобур Назаров',
+        'Зарина Рахимова', 'Шахзод Турсунов'
+      ];
+      const mgrs = defaults.map(name => ({
+        id: crypto.randomUUID(), name, created_at: new Date().toISOString()
+      }));
+      this._write('managers', mgrs);
+    }
+  }
+};
+
+if (useLocal) LS.init();
+
+// ===================== STATE =====================
+let state = {
+  page: 'dashboard',
+  managers: [],
+  sales: [],
+  plans: [],
+  allDailyStats: [],
+  trims: null,
+  models: null,
+  colors: null,
+  planMonth: new Date().getMonth() + 1,
+  planYear: new Date().getFullYear(),
+  reportMonth: new Date().getMonth() + 1,
+  reportYear: new Date().getFullYear(),
+  _charts: {},
+  ratingFilter: 'all',
+  notifications: localStorage.getItem('kia_notif') === 'true',
+};
+
+// ===================== DOM REFS =====================
+const $ = id => document.getElementById(id);
+
+// ===================== NAVIGATION =====================
+const pageTitles = {
+  dashboard: 'Дашборд', sales: 'Продажи', managers: 'Менеджеры',
+  plan: 'План', settings: 'Настройки', stats: 'Конверсия', report: 'Отчёт'
+};
+const tabPages = ['dashboard', 'sales', 'managers'];
+
+const navHistory = [];
+
+function goTo(page, fromBack = false) {
+  if (!fromBack && state.page && state.page !== page) {
+    navHistory.push(state.page);
+  }
+  state.page = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1));
+  if (el) el.classList.add('active');
+
+  $('headerTitle').textContent = pageTitles[page] || '';
+
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === page);
+  });
+  document.querySelectorAll('.sidebar-item').forEach(s => {
+    s.classList.toggle('active', s.dataset.page === page);
+  });
+
+  closeSidebar();
+  loadPage(page);
+}
+
+function goBack() {
+  const prev = navHistory.pop() || 'dashboard';
+  goTo(prev, true);
+}
+
+function loadPage(page) {
+  switch(page) {
+    case 'dashboard': loadDashboard(); break;
+    case 'sales': loadSales(); break;
+    case 'managers': loadManagers(); break;
+    case 'plan': loadPlan(); break;
+    case 'settings': loadSettings(); break;
+    case 'stats': loadStats(); break;
+    case 'report': loadReport(); break;
+  }
+}
+
+// ===================== SIDEBAR =====================
+function openSidebar() { $('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { $('sidebarOverlay').classList.remove('open'); }
+
+// ===================== HELPERS =====================
+const now = new Date();
+const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function fmtNum(n) {
+  if (n == null || isNaN(n)) return '0';
+  return Number(n).toLocaleString('ru-RU');
+}
+
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+function daysInMonth(m, y) { return new Date(y, m, 0).getDate(); }
+
+function currentDay() { return new Date().getDate(); }
+
+function currentMonth() { return now.getMonth() + 1; }
+function currentYear() { return now.getFullYear(); }
+
+// Working days helpers (Mon–Fri only)
+function workingDaysInMonth(m, y) {
+  const total = daysInMonth(m, y);
+  let count = 0;
+  for (let d = 1; d <= total; d++) {
+    const dow = new Date(y, m - 1, d).getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+function workingDaysElapsed(m, y) {
+  const today = new Date();
+  const upTo = (today.getFullYear() === y && today.getMonth() + 1 === m)
+    ? today.getDate() : daysInMonth(m, y);
+  let count = 0;
+  for (let d = 1; d <= upTo; d++) {
+    const dow = new Date(y, m - 1, d).getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+function pctColorHex(pct) {
+  if (pct >= 100) return '#1B3A6B';
+  if (pct >= 75)  return '#34C759';
+  if (pct >= 50)  return '#FF9500';
+  return '#FF3B30';
+}
+
+function pctColor(pct) {
+  if (pct >= 100) return 'var(--accent)';
+  if (pct >= 75) return 'var(--green)';
+  if (pct >= 50) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function pctClass(pct) {
+  if (pct >= 100) return 'color-accent';
+  if (pct >= 75) return 'color-green';
+  if (pct >= 50) return 'color-orange';
+  return 'color-red';
+}
+
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+// ===================== DB QUERIES =====================
+async function fetchManagers() {
+  if (useLocal) {
+    const { data } = await LS.select('managers', { _order: ['name', 'asc'] });
+    return data || [];
+  }
+  const { data, error } = await sb.from('managers').select('*').order('name');
+  if (error) { showToast('Ошибка загрузки менеджеров', 'error'); return []; }
+  return data || [];
+}
+
+async function fetchSales(month, year) {
+  if (useLocal) {
+    let { data } = await LS.select('sales');
+    const startDate = new Date(year, month - 1, 1).toISOString();
+    const endDate = new Date(year, month, 1).toISOString();
+    data = (data || []).filter(s => s.created_at >= startDate && s.created_at < endDate);
+    data.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return data;
+  }
+  const startDate = new Date(year, month - 1, 1).toISOString();
+  const endDate = new Date(year, month, 1).toISOString();
+  const { data, error } = await sb.from('sales').select('*')
+    .gte('created_at', startDate).lt('created_at', endDate)
+    .order('created_at', { ascending: false });
+  if (error) { showToast('Ошибка загрузки продаж', 'error'); return []; }
+  return data || [];
+}
+
+async function fetchPlans(month, year) {
+  if (useLocal) {
+    const { data } = await LS.select('plans', { month, year });
+    return data || [];
+  }
+  const { data, error } = await sb.from('plans').select('*')
+    .eq('month', month).eq('year', year);
+  if (error) { showToast('Ошибка загрузки планов', 'error'); return []; }
+  return data || [];
+}
+
+// ===================== DASHBOARD =====================
+async function loadDashboard() {
+  const m = currentMonth(), y = currentYear();
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2,'0');
+  const mm = String(today.getMonth()+1).padStart(2,'0');
+  $('dDate').textContent = `${dd}.${mm}.${today.getFullYear()}`;
+
+  try {
+    const [managers, sales, plans, dailyStats] = await Promise.all([
+      fetchManagers(), fetchSales(m, y), fetchPlans(m, y), fetchStatsByMonth(m, y)
+    ]);
+    state.managers = managers;
+    state.sales = sales;
+    state.plans = plans;
+
+    // Totals — use only overall plan rows (no manager_id) to avoid double-counting
+    const overallPlans = plans.filter(p => !p.manager_id);
+    const totalPlanSum = overallPlans.reduce((a,p)=>a+Number(p.sum_plan||0),0);
+    const totalPlanQty = overallPlans.reduce((a,p)=>a+Number(p.qty_plan||0),0);
+    const totalFactSum = sales.reduce((a,s)=>a+Number(s.sum||0),0);
+    const totalFactQty = sales.reduce((a,s)=>a+Number(s.qty||0),0);
+
+    // Hero
+    const pct = totalPlanSum>0 ? Math.round(totalFactSum/totalPlanSum*100) : 0;
+    const circ = 188.5;
+    const ring = $('dRing');
+    ring.style.strokeDashoffset = circ - (circ * Math.min(pct,100)/100);
+    ring.style.stroke = pctColor(pct);
+    $('dRingPct').textContent = pct+'%';
+    $('dHeroFact').textContent = fmtNum(totalFactSum);
+    $('dHeroSub').textContent = `План: ${fmtNum(totalPlanSum)} · ${totalPlanQty} шт`;
+
+    // 4 stats
+    $('dStatPostu').textContent = pct+'%';
+    $('dStatPostu').className = 'd-stat-val '+pctClass(pct);
+
+    const AVG_CKD = 249900000, AVG_DKD = 421900000;
+    const wDone = workingDaysElapsed(m, y);
+    const wTotal = workingDaysInMonth(m, y);
+
+    // Segment data — use only overall plan rows for plan totals
+    const seg = (arr, seg, key) => arr.filter(x=>x.segment===seg).reduce((a,x)=>a+Number(x[key]||0),0);
+    const ckdPlanSum = seg(overallPlans,'CKD','sum_plan'), ckdPlanQty = seg(overallPlans,'CKD','qty_plan');
+    const dkdPlanSum = seg(overallPlans,'DKD','sum_plan'), dkdPlanQty = seg(overallPlans,'DKD','qty_plan');
+    const ckdFactSum = seg(sales,'CKD','sum'),      ckdFactQty = seg(sales,'CKD','qty');
+    const dkdFactSum = seg(sales,'DKD','sum'),      dkdFactQty = seg(sales,'DKD','qty');
+    const ckdPct = ckdPlanSum>0 ? Math.round(ckdFactSum/ckdPlanSum*100) : 0;
+    const dkdPct = dkdPlanSum>0 ? Math.round(dkdFactSum/dkdPlanSum*100) : 0;
+    // Forecast based on working days pace — extrapolate actual revenue
+    const ckdFcstQty = wDone>0 ? Math.round(ckdFactQty/wDone*wTotal) : 0;
+    const dkdFcstQty = wDone>0 ? Math.round(dkdFactQty/wDone*wTotal) : 0;
+    const ckdFcst = wDone>0 ? Math.round(ckdFactSum/wDone*wTotal) : 0;
+    const dkdFcst = wDone>0 ? Math.round(dkdFactSum/wDone*wTotal) : 0;
+    const ckdFcstPct = ckdPlanSum>0 ? Math.round(ckdFcst/ckdPlanSum*100) : 0;
+    const dkdFcstPct = dkdPlanSum>0 ? Math.round(dkdFcst/dkdPlanSum*100) : 0;
+
+    const forecast = ckdFcst + dkdFcst;
+    const forecastPct = totalPlanSum>0 ? Math.round(forecast/totalPlanSum*100) : 0;
+    const dayNum = currentDay(), totalDays = daysInMonth(m,y);
+    $('dStatForecast').textContent = forecastPct+'%';
+    $('dStatForecast').className = 'd-stat-val '+pctClass(forecastPct);
+    $('dStatFactQty').textContent = totalFactQty;
+    $('dStatPlanQty').textContent = totalPlanQty;
+
+    // Render segment card (CKD / DKD side by side)
+    function renderSeg(id, name, factSum, factQty, planQty, inPct, fcstSum, fcstPct) {
+      $(id).innerHTML = `
+        <div class="d-seg-title">${name}</div>
+        <div class="d-seg-bar-row">
+          <span>Поступления</span>
+          <span class="d-seg-pct ${pctClass(inPct)}">${inPct}%</span>
+        </div>
+        <div class="d-seg-bar"><div class="d-seg-bar-fill" style="width:${Math.min(inPct,100)}%;background:${pctColor(inPct)}"></div></div>
+        <div class="d-seg-bar-row">
+          <span>Прогноз</span>
+          <span class="d-seg-pct ${pctClass(fcstPct)}">${fcstPct}%</span>
+        </div>
+        <div class="d-seg-bar"><div class="d-seg-bar-fill" style="width:${Math.min(fcstPct,100)}%;background:${pctColor(fcstPct)}"></div></div>
+        <div class="d-seg-inf">
+          <div class="d-seg-inf-row"><span class="d-seg-inf-k">Факт</span><span class="d-seg-inf-v">${fmtNum(factSum)}</span></div>
+          <div class="d-seg-inf-row"><span class="d-seg-inf-k">Шт</span><span class="d-seg-inf-v">${factQty} / ${planQty}</span></div>
+          <div class="d-seg-inf-row"><span class="d-seg-inf-k">Прогноз</span><span class="d-seg-inf-v">${fmtNum(fcstSum)}</span></div>
+        </div>`;
+    }
+    renderSeg('dSegCkd','CKD',ckdFactSum,ckdFactQty,ckdPlanQty,ckdPct,ckdFcst,ckdFcstPct);
+    renderSeg('dSegDkd','DKD',dkdFactSum,dkdFactQty,dkdPlanQty,dkdPct,dkdFcst,dkdFcstPct);
+
+    // Render сводка card
+    // Leasing sales per segment
+    const leasingSeg = (s) => s.leasing == 1 || s.leasing === true;
+    const ckdLeasSum = sales.filter(s=>s.segment==='CKD'&&leasingSeg(s)).reduce((a,s)=>a+Number(s.sum||0),0);
+    const ckdLeasQty = sales.filter(s=>s.segment==='CKD'&&leasingSeg(s)).reduce((a,s)=>a+Number(s.qty||0),0);
+    const dkdLeasSum = sales.filter(s=>s.segment==='DKD'&&leasingSeg(s)).reduce((a,s)=>a+Number(s.sum||0),0);
+    const dkdLeasQty = sales.filter(s=>s.segment==='DKD'&&leasingSeg(s)).reduce((a,s)=>a+Number(s.qty||0),0);
+
+    function renderSvodka(id, name, planSum, planQty, factSum, factQty, inPct, fcstSum, fcstQty, fcstPct, leasSum, leasQty) {
+      const leasLine = (leasSum > 0 || leasQty > 0)
+        ? `<div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--sep);display:flex;align-items:center;gap:8px">
+             <span style="font-size:13px;font-weight:700;background:rgba(27,58,107,0.12);color:var(--accent);border-radius:6px;padding:3px 9px">Лизинг</span>
+             <span style="font-size:15px;font-weight:600;color:var(--text)">${fmtNum(leasSum)} · ${leasQty} шт</span>
+           </div>` : '';
+      $(id).innerHTML = `
+        <div class="d-svodka-card">
+          <div class="d-svodka-head">
+            <span class="d-svodka-title">${name}</span>
+            <span class="d-svodka-plan-lbl">План: ${fmtNum(planSum)} · ${planQty} шт</span>
+          </div>
+          <div class="d-svodka-cols">
+            <div class="d-svodka-col">
+              <div class="d-svodka-col-lbl">Поступления</div>
+              <div class="d-svodka-row"><span class="d-svodka-k">Сумма</span><span class="d-svodka-v">${fmtNum(factSum)}</span></div>
+              <div class="d-svodka-row"><span class="d-svodka-k">Кол-во</span><span class="d-svodka-v">${factQty} шт</span></div>
+              <span class="d-svodka-badge" style="background:${pctColor(inPct)}">${inPct}%</span>
+            </div>
+            <div class="d-svodka-col">
+              <div class="d-svodka-col-lbl">Прогноз</div>
+              <div class="d-svodka-row"><span class="d-svodka-k">Сумма</span><span class="d-svodka-v">${fmtNum(fcstSum)}</span></div>
+              <div class="d-svodka-row"><span class="d-svodka-k">Кол-во</span><span class="d-svodka-v">${fcstQty} шт</span></div>
+              <span class="d-svodka-badge" style="background:${pctColor(fcstPct)}">${fcstPct}%</span>
+            </div>
+          </div>
+          ${leasLine}
+        </div>`;
+    }
+    renderSvodka('dSvodkaCkd','CKD',ckdPlanSum,ckdPlanQty,ckdFactSum,ckdFactQty,ckdPct,ckdFcst,ckdFcstQty,ckdFcstPct,ckdLeasSum,ckdLeasQty);
+    renderSvodka('dSvodkaDkd','DKD',dkdPlanSum,dkdPlanQty,dkdFactSum,dkdFactQty,dkdPct,dkdFcst,dkdFcstQty,dkdFcstPct,dkdLeasSum,dkdLeasQty);
+
+    // Total row
+    const totalFcstQty = dayNum>0 ? Math.round(totalFactQty/dayNum*totalDays) : 0;
+    $('dTotal').innerHTML = `
+      <span class="d-total-lbl">Общий прогноз</span>
+      <span class="d-total-val">${fmtNum(forecast)} · ${totalFcstQty} шт</span>
+      <span class="d-total-badge" style="background:${pctColor(forecastPct)}">${forecastPct}%</span>`;
+
+    // Traffic block
+    const totalTraffic   = dailyStats.reduce((a,r) => a + Number(r.traffic||0), 0);
+    const totalTestDrive = dailyStats.reduce((a,r) => a + Number(r.test_drives||0), 0);
+    const totalContracts = dailyStats.reduce((a,r) => a + Number(r.contracts||0), 0);
+    const convTD  = totalTraffic > 0 ? Math.round(totalTestDrive / totalTraffic * 100) : 0;
+    const convDog = totalTraffic > 0 ? Math.round(totalContracts  / totalTraffic * 100) : 0;
+
+    const dFunnelSteps = [
+      { label: 'Трафик',     val: totalTraffic,    color: '#1B3A6B', fromPrev: null },
+      { label: 'Тест-драйв', val: totalTestDrive,  color: '#2A5298', fromPrev: totalTraffic },
+      { label: 'Договора',   val: totalContracts,  color: '#FF9500', fromPrev: totalTraffic },
+      { label: 'Продажи',    val: totalFactQty,    color: '#34C759', fromPrev: totalTraffic },
+    ];
+    const dFMax = Math.max(...dFunnelSteps.map(s=>s.val), 1);
+    let dFHtml = '<div class="card" style="padding:16px">';
+    dFunnelSteps.forEach((s, i) => {
+      const w = s.val > 0 ? Math.max(Math.round(s.val/dFMax*100), 10) : 4;
+      const convPct = s.fromPrev != null && s.fromPrev > 0 ? Math.round(s.val/s.fromPrev*100) : null;
+      const convLabel = convPct != null ? `<span style="font-size:12px;color:var(--text2);margin-left:6px">${convPct}%</span>` : '';
+      dFHtml += `<div style="margin-bottom:${i<3?'10':'0'}px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <div style="font-size:14px;font-weight:600;color:var(--text)">${s.label}${convLabel}</div>
+          <div style="font-size:16px;font-weight:800;color:var(--text)">${s.val}</div>
+        </div>
+        <div style="height:32px;background:var(--sep);border-radius:8px;overflow:hidden">
+          <div style="height:100%;width:${w}%;background:${s.color};border-radius:8px;display:flex;align-items:center;padding-left:10px">
+            ${s.val>0?`<span style="font-size:12px;color:rgba(255,255,255,0.85);font-weight:600">${s.label}</span>`:''}
+          </div>
+        </div>
+        ${i<3?`<div style="display:flex;justify-content:center;margin-top:6px"><svg width="12" height="10" viewBox="0 0 12 10" fill="${s.color}" opacity=".35"><polygon points="6,10 0,0 12,0"/></svg></div>`:''}
+      </div>`;
+    });
+    dFHtml += '</div>';
+    $('dTrafficBlock').innerHTML = dFHtml;
+
+    // Podium — top 3 managers by sales sum
+    const mgrTotals = managers.map(mgr => {
+      const mSales = sales.filter(s => s.manager_id === mgr.id);
+      const mStats = dailyStats.filter(r => r.manager_id === mgr.id);
+      const sum = mSales.reduce((a,s)=>a+Number(s.sum||0),0);
+      const qty = mSales.reduce((a,s)=>a+Number(s.qty||0),0);
+      const traffic = mStats.reduce((a,r)=>a+Number(r.traffic||0),0);
+      const conv = traffic > 0 ? Math.round(qty / traffic * 100) : null;
+      return { name: mgr.name, id: mgr.id, sum, qty, traffic, conv };
+    }).sort((a,b) => b.sum - a.sum);
+
+    // Podium order: 2nd, 1st, 3rd
+    const order = [mgrTotals[1], mgrTotals[0], mgrTotals[2]];
+    const barH  = [64, 90, 48]; // heights for 2nd, 1st, 3rd
+    const posNum= [2, 1, 3];
+    const pCls  = ['p2','p1','p3'];
+
+    let podHtml = `<div class="d-podium-wrap" onclick="goTo('managers')">
+      <div class="d-podium-sub">Рейтинг за текущий месяц</div>
+      <div class="d-podium-stage">`;
+
+    order.forEach((m, i) => {
+      if (!m) return;
+      const ini = initials(m.name).toUpperCase();
+      const firstName = m.name.split(' ')[0];
+      const crown = posNum[i]===1 ? '<span class="d-podium-crown">👑</span>' : '';
+      podHtml += `
+        <div class="d-podium-col">
+          <div class="d-podium-avatar ${pCls[i]}">${crown}${ini}</div>
+          <div class="d-podium-name">${firstName}</div>
+          <div class="d-podium-sum">${fmtNum(m.sum)}</div>
+          <div class="d-podium-bar" style="height:${barH[i]}px;background:${['#2A5298','#1B3A6B','#3A6BC8'][i]}">${posNum[i]}</div>
+        </div>`;
+    });
+
+    // Rating list inside podium card
+    const dRated = [...mgrTotals].slice(0, 3).map((m, i) => {
+      const convTxt = m.conv != null ? m.conv + '%' : '—';
+      const convCol = m.conv == null ? 'var(--text2)' : m.conv >= 20 ? '#34C759' : m.conv >= 10 ? '#FF9500' : '#FF3B30';
+      return `<div class="rating-item">
+        <div class="rating-pos">${i+1}</div>
+        <div class="rating-avatar">${initials(m.name).toUpperCase()}</div>
+        <div class="rating-info">
+          <div class="rating-name">${m.name}</div>
+          <div class="rating-detail">${fmtNum(m.sum)} • ${m.qty} шт. • трафик ${m.traffic}</div>
+        </div>
+        <div class="rating-pct" style="color:${convCol};font-size:15px;font-weight:700">${convTxt}</div>
+      </div>`;
+    });
+
+    podHtml += `</div>
+      <div style="border-top:0.5px solid var(--sep);margin:12px 0 4px"></div>
+      ${dRated.join('')}
+      <button onclick="goTo('managers')" style="display:block;width:100%;margin-top:10px;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer">Все менеджеры →</button>
+    </div>`;
+    $('dPodium').innerHTML = podHtml;
+    $('dRatingList').innerHTML = '';
+
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ===================== SALES =====================
+async function loadSales() {
+  const m = currentMonth(), y = currentYear();
+
+  if (!$('saleDate').value) {
+    $('saleDate').value = new Date().toISOString().slice(0, 10);
+  }
+
+  if (!state.managers.length) state.managers = await fetchManagers();
+  await Promise.all([loadTrimSelect(), loadColorSelect()]);
+
+  // Manager searchable select — store id as value, name as label
+  ssData['saleManager'] = state.managers.map(m => m.name);
+  state._mgrMap = {};
+  state.managers.forEach(m => { state._mgrMap[m.name] = m.id; state._mgrMap[m.id] = m.name; });
+  ssInit('saleManager', state.managers.map(m => m.name));
+
+  // Load sales
+  const sales = await fetchSales(m, y);
+  state.sales = sales;
+  filterSalesByDate();
+}
+
+function toggleAllSales() {
+  const btn = $('salesAllBtn');
+  const isAll = btn.dataset.mode === 'all';
+  if (isAll) {
+    btn.dataset.mode = '';
+    btn.textContent = 'Все записи';
+    btn.style.color = 'var(--accent)';
+    filterSalesByDate();
+  } else {
+    btn.dataset.mode = 'all';
+    btn.textContent = 'За день';
+    btn.style.color = 'var(--text2)';
+    const sales = state.sales || [];
+    $('salesHistoryTitle').textContent = `Все продажи (${sales.length})`;
+    if (!sales.length) {
+      $('salesList').innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Нет продаж</div></div>';
+      return;
+    }
+    let html = '';
+    [...sales].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).forEach(s => {
+      const mgr = state.managers.find(m => m.id === s.manager_id);
+      const trimColor = [s.trim, s.color].filter(Boolean).join(' · ');
+      html += `<div class="sale-item">
+        <div class="sale-info">
+          <div class="sale-manager">${mgr ? mgr.name : 'Неизвестный'}</div>
+          ${trimColor ? `<div class="sale-meta" style="color:var(--text);font-weight:500">${trimColor}</div>` : ''}
+          <div class="sale-meta">${s.segment} • ${fmtDate(s.created_at)} • ${s.qty} шт.${s.leasing ? ' • Лизинг' : ''}</div>
+        </div>
+        <div>
+          <div class="sale-amount">${fmtNum(s.sum)}</div>
+        </div>
+        <button class="sale-delete" onclick="deleteSale('${s.id}')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>`;
+    });
+    $('salesList').innerHTML = html;
+  }
+}
+
+function filterSalesByDate() {
+  const selectedDate = $('saleDate').value;
+  const sales = state.sales || [];
+  const filtered = selectedDate
+    ? sales.filter(s => s.created_at && s.created_at.slice(0,10) === selectedDate)
+    : sales;
+
+  const dateLabel = selectedDate ? (() => {
+    const d = new Date(selectedDate + 'T00:00:00');
+    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+  })() : null;
+
+  // Update history title
+  const titleEl = $('salesHistoryTitle');
+  if (titleEl) titleEl.textContent = dateLabel ? `История за ${dateLabel}` : 'История продаж';
+  const btn = $('salesAllBtn');
+  if (btn) { btn.textContent = 'Все записи'; btn.style.color = 'var(--accent)'; }
+
+  if (!filtered.length) {
+    $('salesList').innerHTML = `<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">${selectedDate ? 'Нет продаж за этот день' : 'Нет продаж за этот месяц'}</div></div>`;
+    return;
+  }
+
+  let html = '';
+  filtered.forEach(s => {
+    const mgr = state.managers.find(m => m.id === s.manager_id);
+    const trimColor = [s.trim, s.color].filter(Boolean).join(' · ');
+    html += `<div class="sale-item">
+      <div class="sale-info">
+        <div class="sale-manager">${mgr ? mgr.name : 'Неизвестный'}</div>
+        ${trimColor ? `<div class="sale-meta" style="color:var(--text);font-weight:500">${trimColor}</div>` : ''}
+        <div class="sale-meta">${s.segment} \u2022 ${fmtDate(s.created_at)} \u2022 ${s.qty} шт.${s.leasing ? ' \u2022 Лизинг' : ''}</div>
+      </div>
+      <div>
+        <div class="sale-amount">${fmtNum(s.sum)}</div>
+      </div>
+      <button class="sale-delete" onclick="deleteSale('${s.id}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>`;
+  });
+  $('salesList').innerHTML = html;
+}
+
+async function addSale() {
+  const mgrName = $('saleManager').value;
+  const mgr = state.managers.find(m => m.name === mgrName);
+  const managerId = mgr ? mgr.id : '';
+  const segment = $('saleSegment').value;
+  const trim = $('saleTrim').value;
+  const color = $('saleColor').value;
+  const sum = parseFloat($('saleSum').value.replace(/\s/g, ''));
+  const qty = parseInt($('saleQty').value) || 1;
+  const leasing = $('saleLeasing').checked ? 1 : 0;
+
+  if (!managerId) { showToast('Выберите менеджера', 'error'); return; }
+  if (!sum || sum <= 0) { showToast('Введите сумму', 'error'); return; }
+
+  const saleDateVal = $('saleDate').value;
+  const created_at = saleDateVal ? new Date(saleDateVal + 'T12:00:00').toISOString() : new Date().toISOString();
+  const row = { manager_id: managerId, segment, trim, color, sum, qty, leasing, created_at };
+
+  if (useLocal) {
+    await LS.insert('sales', row);
+  } else {
+    const { error } = await sb.from('sales').insert(row);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  showToast('Продажа добавлена', 'success');
+  ssInit('saleManager', ssData['saleManager'] || []);
+  ssInit('saleTrim', ssData['saleTrim'] || []);
+  ssInit('saleColor', ssData['saleColor'] || []);
+  $('saleSum').value = '';
+  $('saleQty').value = '1';
+  $('saleLeasing').checked = false;
+  loadSales();
+}
+
+async function deleteSale(id) {
+  const ok = await showModal('Удалить продажу?', 'Это действие нельзя отменить');
+  if (!ok) return;
+
+  if (useLocal) {
+    await LS.delete('sales', { id });
+  } else {
+    const { error } = await sb.from('sales').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+
+  showToast('Продажа удалена', 'success');
+  loadSales();
+}
+
+// ===================== MANAGERS =====================
+async function loadManagers() {
+  const m = currentMonth(), y = currentYear();
+
+  const [managers, sales, dailyStats] = await Promise.all([
+    fetchManagers(), fetchSales(m, y), fetchStatsByMonth(m, y)
+  ]);
+  state.managers = managers;
+  state.sales = sales;
+
+  if (!state.plans.length) state.plans = await fetchPlans(m, y);
+
+  // Calculate stats per manager
+  const stats = managers.map(mgr => {
+    const mgrSales = sales.filter(s => s.manager_id === mgr.id);
+    const totalSum = mgrSales.reduce((a, s) => a + Number(s.sum || 0), 0);
+    const totalQty = mgrSales.reduce((a, s) => a + Number(s.qty || 0), 0);
+    const mgrPlans = state.plans.filter(p => p.manager_id === mgr.id);
+    const planSum = mgrPlans.reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+    const planQty = mgrPlans.reduce((a, p) => a + Number(p.qty_plan || 0), 0);
+    const pct = planQty > 0 ? Math.round(totalQty / planQty * 100) : (planSum > 0 ? Math.round(totalSum / planSum * 100) : -1);
+    const mDs    = dailyStats.filter(d => d.manager_id === mgr.id);
+    const mTr    = mDs.reduce((a,d)=>a+Number(d.traffic||0),0);
+    const mTD    = mDs.reduce((a,d)=>a+Number(d.test_drives||0),0);
+    const mContr = mDs.reduce((a,d)=>a+Number(d.contracts||0),0);
+    const mConv  = mTr>0 ? Math.round(mContr/mTr*100) : -1;
+    const mLeasQ = mgrSales.filter(s=>s.leasing==1||s.leasing===true).reduce((a,s)=>a+Number(s.qty||0),0);
+    const mLeasP = totalQty>0 ? Math.round(mLeasQ/totalQty*100) : 0;
+    const mAvgCh = totalQty>0 ? Math.round(totalSum/totalQty) : 0;
+    return { ...mgr, totalSum, totalQty, planSum, planQty, pct, mTr, mTD, mContr, mConv, mLeasP, mAvgCh };
+  });
+
+  state.managerStats = stats;
+  renderPodium(stats);
+  renderRating(stats, state.ratingFilter);
+  renderMgrKpiCards(stats);
+}
+
+function renderMgrKpiCards(stats) {
+  const sorted = [...stats].sort((a,b)=>b.totalSum-a.totalSum);
+  let html = sorted.map((m, i) => {
+    const barW = m.planQty>0 ? Math.min(Math.round(m.totalQty/m.planQty*100),100) : (m.planSum>0 ? Math.min(Math.round(m.totalSum/m.planSum*100),100) : 0);
+    const pHex = pctColorHex(m.pct>=0?m.pct:0);
+    return `<div class="card" style="margin:0 16px 10px;padding:14px 14px 12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">${i+1}</div>
+          <div>
+            <div style="font-size:15px;font-weight:700">${m.name}</div>
+            <div style="font-size:11px;color:var(--text2)">${fmtNum(m.totalSum)} · ${m.totalQty} шт</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:22px;font-weight:800;color:${pHex};line-height:1">${m.pct>=0?m.pct+'%':'—'}</div>
+          <div style="font-size:10px;color:var(--text2)">плана</div>
+        </div>
+      </div>
+      ${m.planSum>0?`<div style="height:5px;background:var(--sep);border-radius:3px;margin-bottom:12px;overflow:hidden"><div style="height:100%;width:${barW}%;background:${pHex};border-radius:3px"></div></div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px">
+        <div style="background:rgba(27,58,107,0.08);border-radius:10px;padding:10px 6px;text-align:center">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#1B3A6B;margin-bottom:4px">Трафик</div>
+          <div style="font-size:18px;font-weight:800;color:#1B3A6B">${m.mTr}</div>
+          <div style="font-size:10px;color:var(--text2)">визитов</div>
+        </div>
+        <div style="background:rgba(52,199,89,0.1);border-radius:10px;padding:10px 6px;text-align:center">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#1E7A35;margin-bottom:4px">Тест-драйв</div>
+          <div style="font-size:18px;font-weight:800;color:#1E7A35">${m.mTD}</div>
+          <div style="font-size:10px;color:var(--text2)">${m.mTr>0?Math.round(m.mTD/m.mTr*100)+'%':'—'} конв.</div>
+        </div>
+        <div style="background:rgba(255,149,0,0.1);border-radius:10px;padding:10px 6px;text-align:center">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#CC7800;margin-bottom:4px">Договора</div>
+          <div style="font-size:18px;font-weight:800;color:#CC7800">${m.mContr}</div>
+          <div style="font-size:10px;color:var(--text2)">${m.mTr>0?Math.round(m.mContr/m.mTr*100)+'%':'—'} конв.</div>
+        </div>
+        <div style="background:rgba(52,199,89,0.08);border-radius:10px;padding:10px 6px;text-align:center">
+          <div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#34C759;margin-bottom:4px">Продажи</div>
+          <div style="font-size:18px;font-weight:800;color:#34C759">${m.totalQty}</div>
+          <div style="font-size:10px;color:var(--text2)">${m.mTr>0?Math.round(m.totalQty/m.mTr*100)+'%':'—'} конв.</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  $('mgrKpiCards').innerHTML = html ? `<div style="margin-top:8px">${html}</div>` : '';
+}
+
+function renderPodium(stats) {
+  const sorted = [...stats].sort((a, b) => b.totalSum - a.totalSum);
+  const top3 = sorted.slice(0, 3);
+
+  if (top3.length < 1) {
+    $('podiumWrap').innerHTML = '<div class="empty"><div class="empty-text">Нет данных</div></div>';
+    return;
+  }
+
+  const positions = ['first', 'second', 'third'];
+  const medals = ['👑', '', ''];
+  let html = '<div class="podium">';
+
+  for (let i = 0; i < Math.min(3, top3.length); i++) {
+    const m = top3[i];
+    html += `<div class="podium-item ${positions[i]}">
+      ${i === 0 ? '<div class="podium-crown">👑</div>' : ''}
+      <div class="podium-avatar">${initials(m.name)}</div>
+      <div class="podium-name">${m.name.split(' ')[0]}</div>
+      <div class="podium-val">${fmtNum(m.totalSum)}</div>
+      <div class="podium-bar">${i + 1}</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  $('podiumWrap').innerHTML = html;
+}
+
+function filterRating(seg) {
+  state.ratingFilter = seg;
+  document.querySelectorAll('.rating-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.seg === seg);
+  });
+  renderRating(state.managerStats || [], seg);
+}
+
+function renderRating(stats, filter) {
+  let filtered;
+  if (filter === 'all') {
+    filtered = stats;
+  } else {
+    filtered = stats.map(mgr => {
+      const segSales = state.sales.filter(s => s.manager_id === mgr.id && s.segment === filter);
+      const segSum = segSales.reduce((a, s) => a + Number(s.sum || 0), 0);
+      const segQty = segSales.reduce((a, s) => a + Number(s.qty || 0), 0);
+      const segPlans = state.plans.filter(p => p.manager_id === mgr.id && p.segment === filter);
+      const segPlan = segPlans.reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+      const segPlanQty = segPlans.reduce((a, p) => a + Number(p.qty_plan || 0), 0);
+      const pct = segPlanQty > 0 ? Math.round(segQty / segPlanQty * 100) : (segPlan > 0 ? Math.round(segSum / segPlan * 100) : -1);
+      return { ...mgr, totalSum: segSum, totalQty: segQty, planSum: segPlan, pct };
+    });
+  }
+
+  const sorted = [...filtered].sort((a, b) => b.totalSum - a.totalSum);
+
+  if (!sorted.length) {
+    $('ratingList').innerHTML = '<div class="empty"><div class="empty-text">Нет данных</div></div>';
+    return;
+  }
+
+  let html = '';
+  sorted.forEach((m, i) => {
+    html += `<div class="rating-item">
+      <div class="rating-pos">${i + 1}</div>
+      <div class="rating-avatar">${initials(m.name)}</div>
+      <div class="rating-info">
+        <div class="rating-name">${m.name}</div>
+        <div class="rating-detail">${fmtNum(m.totalSum)} \u2022 ${m.totalQty} шт.</div>
+      </div>
+      <div>
+        <div class="rating-pct ${m.pct >= 0 ? pctClass(m.pct) : ''}">${m.pct >= 0 ? m.pct + '%' : '\u2014'}</div>
+      </div>
+    </div>`;
+  });
+  $('ratingList').innerHTML = html;
+}
+
+// ===================== PLAN =====================
+async function loadPlan() {
+  const m = state.planMonth, y = state.planYear;
+  $('planMonthLabel').textContent = monthNames[m - 1] + ' ' + y;
+
+  if (!state.managers.length) state.managers = await fetchManagers();
+  const plans = await fetchPlans(m, y);
+  state.plans = plans;
+
+  // Overall CKD/DKD plan (rows without manager_id)
+  const ckdOverall = plans.find(p => p.segment === 'CKD' && !p.manager_id);
+  const dkdOverall = plans.find(p => p.segment === 'DKD' && !p.manager_id);
+
+  const fmtO = v => v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '';
+  $('planCkdSum').value = fmtO(ckdOverall?.sum_plan);
+  $('planCkdQty').value = ckdOverall?.qty_plan || '';
+  $('planDkdSum').value = fmtO(dkdOverall?.sum_plan);
+  $('planDkdQty').value = dkdOverall?.qty_plan || '';
+
+  // Per manager
+  let html = '';
+  state.managers.forEach(mgr => {
+    const ckd = plans.find(p => p.manager_id === mgr.id && p.segment === 'CKD');
+    const dkd = plans.find(p => p.manager_id === mgr.id && p.segment === 'DKD');
+    const fmt = v => v ? String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '';
+    html += `<div class="plan-row" style="flex-wrap:wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px">
+        <div id="planMgrName_${mgr.id}" class="plan-row-name" style="font-weight:600;flex:1">${mgr.name}</div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px" onclick="editMgrInPlan('${mgr.id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteManagerFull('${mgr.id}','${mgr.name}')">Удалить</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;width:100%;align-items:center">
+        <span style="font-size:12px;color:var(--text2);width:32px">CKD</span>
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="CKD" data-field="sum"
+          placeholder="Сумма" type="text" inputmode="numeric" oninput="formatPlanSum(this)" value="${fmt(ckd?.sum_plan)}">
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="CKD" data-field="qty"
+          placeholder="Кол" type="number" value="${ckd ? ckd.qty_plan : ''}" style="flex:0 0 60px;width:60px">
+      </div>
+      <div style="display:flex;gap:8px;width:100%;align-items:center;margin-top:4px">
+        <span style="font-size:12px;color:var(--text2);width:32px">DKD</span>
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="DKD" data-field="sum"
+          placeholder="Сумма" type="text" inputmode="numeric" oninput="formatPlanSum(this)" value="${fmt(dkd?.sum_plan)}">
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="DKD" data-field="qty"
+          placeholder="Кол" type="number" value="${dkd ? dkd.qty_plan : ''}" style="flex:0 0 60px;width:60px">
+      </div>
+    </div>`;
+  });
+  $('planManagersList').innerHTML = html;
+}
+
+function changePlanMonth(dir) {
+  state.planMonth += dir;
+  if (state.planMonth > 12) { state.planMonth = 1; state.planYear++; }
+  if (state.planMonth < 1) { state.planMonth = 12; state.planYear--; }
+  loadPlan();
+}
+
+async function deletePlan(managerId) {
+  const ok = await showModal('Удалить план?', 'Удалить план этого менеджера на текущий месяц?');
+  if (!ok) return;
+
+  if (useLocal) {
+    let data = LS._read('plans');
+    data = data.filter(p => !(p.manager_id == managerId && p.month == state.planMonth && p.year == state.planYear));
+    LS._write('plans', data);
+  } else {
+    const { error } = await sb.from('plans').delete()
+      .eq('manager_id', managerId).eq('month', state.planMonth).eq('year', state.planYear);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+
+  showToast('План удалён', 'success');
+  loadPlan();
+}
+
+async function savePlans() {
+  const m = state.planMonth, y = state.planYear;
+  const inputs = document.querySelectorAll('.plan-row-input[data-mgr]');
+  const planMap = {};
+
+  inputs.forEach(inp => {
+    const mgrId = inp.dataset.mgr;
+    const seg = inp.dataset.seg;
+    const field = inp.dataset.field;
+    const key = mgrId + '_' + seg;
+    if (!planMap[key]) planMap[key] = { manager_id: mgrId, segment: seg, month: m, year: y, sum_plan: 0, qty_plan: 0 };
+    if (field === 'sum') planMap[key].sum_plan = parseFloat(inp.value.replace(/\s/g, '')) || 0;
+    if (field === 'qty') planMap[key].qty_plan = parseInt(inp.value) || 0;
+  });
+
+  const upserts = Object.values(planMap).filter(p => p.sum_plan > 0 || p.qty_plan > 0);
+
+  // Add overall plan rows (no manager_id)
+  const ckdSum = parseFloat(($('planCkdSum').value||'').replace(/\s/g,'')) || 0;
+  const ckdQty = parseInt(($('planCkdQty').value||'').replace(/\s/g,'')) || 0;
+  const dkdSum = parseFloat(($('planDkdSum').value||'').replace(/\s/g,'')) || 0;
+  const dkdQty = parseInt(($('planDkdQty').value||'').replace(/\s/g,'')) || 0;
+  if (ckdSum > 0 || ckdQty > 0) upserts.push({ manager_id: null, segment: 'CKD', month: m, year: y, sum_plan: ckdSum, qty_plan: ckdQty });
+  if (dkdSum > 0 || dkdQty > 0) upserts.push({ manager_id: null, segment: 'DKD', month: m, year: y, sum_plan: dkdSum, qty_plan: dkdQty });
+
+  if (useLocal) {
+    let data = LS._read('plans');
+    data = data.filter(p => !(p.month == m && p.year == y));
+    LS._write('plans', data);
+    if (upserts.length) await LS.insert('plans', upserts);
+  } else {
+    await sb.from('plans').delete().eq('month', m).eq('year', y);
+    if (upserts.length) {
+      const { error } = await sb.from('plans').insert(upserts);
+      if (error) { showToast('Ошибка сохранения: ' + error.message, 'error'); return; }
+    }
+  }
+
+  showToast('Планы сохранены', 'success');
+  loadPlan();
+}
+
+async function confirmNewMonth() {
+  const ok = await showModal('Новый месяц', 'Начать новый месяц? Текущие планы будут скопированы на следующий месяц.');
+  if (!ok) return;
+
+  const m = currentMonth(), y = currentYear();
+  let nextM = m + 1, nextY = y;
+  if (nextM > 12) { nextM = 1; nextY++; }
+
+  // Check if next month plans already exist
+  const existing = await fetchPlans(nextM, nextY);
+  if (existing.length) {
+    showToast('Планы на ' + monthNames[nextM - 1] + ' уже существуют', 'error');
+    return;
+  }
+
+  const plans = await fetchPlans(m, y);
+  if (plans.length) {
+    const newPlans = plans.map(p => ({
+      manager_id: p.manager_id, segment: p.segment,
+      month: nextM, year: nextY,
+      sum_plan: p.sum_plan, qty_plan: p.qty_plan
+    }));
+    if (useLocal) {
+      await LS.insert('plans', newPlans);
+    } else {
+      await sb.from('plans').insert(newPlans);
+    }
+  }
+
+  state.planMonth = nextM;
+  state.planYear = nextY;
+  showToast('Новый месяц создан', 'success');
+  loadPlan();
+}
+
+// ===================== SETTINGS =====================
+async function loadSettings() {
+  if (!state.managers.length) state.managers = await fetchManagers();
+  if (!state.trims) state.trims = await fetchTrims();
+  const toggle = $('toggleNotif');
+  toggle.classList.toggle('on', state.notifications);
+}
+
+async function openSubPage(type) {
+  const wrap = $('subpageWrap');
+  $('subManagers').style.display = 'none';
+  $('subTrims').style.display = 'none';
+  $('subColors').style.display = 'none';
+  if (type === 'managers') {
+    $('subpageTitle').textContent = 'Менеджеры';
+    $('subManagers').style.display = 'block';
+    renderManagerList();
+  } else if (type === 'trims') {
+    $('subpageTitle').textContent = 'Комплектации';
+    $('subTrims').style.display = 'block';
+    renderTrimList();
+  } else if (type === 'colors') {
+    $('subpageTitle').textContent = 'Цвета';
+    $('subColors').style.display = 'block';
+    if (!state.colors) state.colors = await fetchColors();
+    renderColorList();
+  }
+  wrap.classList.add('open');
+}
+
+function closeSubPage() {
+  $('subpageWrap').classList.remove('open');
+}
+
+function toggleNotifications() {
+  state.notifications = !state.notifications;
+  localStorage.setItem('kia_notif', state.notifications);
+  $('toggleNotif').classList.toggle('on', state.notifications);
+}
+
+// ===================== MANAGER CRUD (in Settings) =====================
+function renderManagerList() {
+  if (!state.managers.length) {
+    $('mgrManageList').innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">Нет менеджеров</div>';
+    return;
+  }
+  $('mgrManageList').innerHTML = state.managers.map(mgr => `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:8px;background:var(--card);border:1px solid var(--sep);border-radius:12px;">
+      <div class="setting-label" id="mgrName_${mgr.id}" style="flex:1">${mgr.name}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px" onclick="editManagerName('${mgr.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-sm btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteManager('${mgr.id}','${mgr.name}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+async function editManagerName(id) {
+  const mgr = state.managers.find(m => m.id === id);
+  if (!mgr) return;
+  const el = document.getElementById('mgrName_' + id);
+  const currentName = mgr.name;
+
+  el.innerHTML = `<div style="display:flex;gap:6px;align-items:center">
+    <input class="form-input" id="mgrEditInput_${id}" value="${currentName}" style="padding:6px 10px;font-size:14px">
+    <button class="btn btn-sm btn-green" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="saveManagerName('${id}')">OK</button>
+  </div>`;
+  const inp = document.getElementById('mgrEditInput_' + id);
+  inp.focus();
+  inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveManagerName(id); });
+}
+
+async function saveManagerName(id) {
+  const inp = document.getElementById('mgrEditInput_' + id);
+  const newName = inp.value.trim();
+  if (!newName) { showToast('Введите имя', 'error'); return; }
+
+  if (useLocal) {
+    let data = LS._read('managers');
+    data = data.map(m => m.id === id ? { ...m, name: newName } : m);
+    LS._write('managers', data);
+  } else {
+    const { error } = await sb.from('managers').update({ name: newName }).eq('id', id);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  showToast('Имя изменено', 'success');
+  state.managers = await fetchManagers();
+  renderManagerList();
+}
+
+async function addManager() {
+  const name = $('newManagerName').value.trim();
+  if (!name) { showToast('Введите имя', 'error'); return; }
+
+  if (useLocal) {
+    await LS.insert('managers', { name });
+  } else {
+    const { error } = await sb.from('managers').insert({ name });
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  $('newManagerName').value = '';
+  showToast('Менеджер добавлен', 'success');
+  state.managers = await fetchManagers();
+  renderManagerList();
+  loadManagers();
+}
+
+function formatPlanSum(el) {
+  const raw = el.value.replace(/\D/g, '');
+  el.value = raw ? raw.replace(/\B(?=(\d{3})+(?!\d))/g, ' ') : '';
+}
+
+function editMgrInPlan(id) {
+  const mgr = state.managers.find(m => m.id == id);
+  if (!mgr) return;
+  const el = $('planMgrName_' + id);
+  el.innerHTML = `<div style="display:flex;gap:6px;align-items:center;flex:1">
+    <input class="form-input" id="planMgrEdit_${id}" value="${mgr.name}" style="padding:6px 10px;font-size:14px">
+    <button class="btn btn-sm btn-primary" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="saveMgrInPlan('${id}')">OK</button>
+  </div>`;
+  const inp = $('planMgrEdit_' + id);
+  inp.focus(); inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveMgrInPlan(id); });
+}
+
+async function saveMgrInPlan(id) {
+  const inp = $('planMgrEdit_' + id);
+  const newName = inp.value.trim();
+  if (!newName) { showToast('Введите имя', 'error'); return; }
+  if (useLocal) {
+    let data = LS._read('managers');
+    data = data.map(m => m.id == id ? { ...m, name: newName } : m);
+    LS._write('managers', data);
+  } else {
+    const { error } = await sb.from('managers').update({ name: newName }).eq('id', id);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+  showToast('Имя изменено', 'success');
+  state.managers = await fetchManagers();
+  loadPlan();
+}
+
+async function deleteManagerFull(id, name) {
+  const ok = await showModal('Удалить менеджера?', `Удалить ${name}? Все данные менеджера будут удалены.`);
+  if (!ok) return;
+  if (useLocal) {
+    await LS.delete('managers', { id });
+  } else {
+    const { error } = await sb.from('managers').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+  showToast('Менеджер удалён', 'success');
+  state.managers = await fetchManagers();
+  loadPlan();
+}
+
+async function addManagerFromPlan() {
+  const name = $('planNewManagerName').value.trim();
+  if (!name) { showToast('Введите имя', 'error'); return; }
+  if (useLocal) {
+    await LS.insert('managers', { name });
+  } else {
+    const { error } = await sb.from('managers').insert({ name });
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+  $('planNewManagerName').value = '';
+  showToast('Менеджер добавлен', 'success');
+  state.managers = await fetchManagers();
+  loadPlan();
+}
+
+async function deleteManager(id, name) {
+  const ok = await showModal('Удалить менеджера?', `Вы уверены что хотите удалить ${name}?`);
+  if (!ok) return;
+
+  if (useLocal) {
+    await LS.delete('managers', { id });
+  } else {
+    const { error } = await sb.from('managers').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+
+  showToast('Менеджер удалён', 'success');
+  state.managers = await fetchManagers();
+  renderManagerList();
+  loadManagers();
+}
+
+// ===================== TRIM CRUD (in Settings) =====================
+async function fetchTrims() {
+  if (useLocal) {
+    const { data } = await LS.select('trims', { _order: ['name', 'asc'] });
+    return data || [];
+  }
+  const { data } = await sb.from('trims').select('*').order('name');
+  return data || [];
+}
+
+function renderTrimList() {
+  const trims = state.trims || [];
+  if (!trims.length) {
+    $('trimManageList').innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">Нет комплектаций</div>';
+    return;
+  }
+  $('trimManageList').innerHTML = trims.map(t => `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:8px;background:var(--card);border:1px solid var(--sep);border-radius:12px;">
+      <div class="setting-label" id="trimName_${t.id}" style="flex:1">${t.name}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px" onclick="editTrim('${t.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-sm btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteTrim('${t.id}','${t.name}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function editTrim(id) {
+  const t = (state.trims || []).find(x => x.id === id);
+  if (!t) return;
+  const el = document.getElementById('trimName_' + id);
+  el.innerHTML = `<div style="display:flex;gap:6px;align-items:center">
+    <input class="form-input" id="trimEditInput_${id}" value="${t.name}" style="padding:6px 10px;font-size:14px">
+    <button class="btn btn-sm btn-green" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="saveTrim('${id}')">OK</button>
+  </div>`;
+  const inp = document.getElementById('trimEditInput_' + id);
+  inp.focus(); inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveTrim(id); });
+}
+
+async function saveTrim(id) {
+  const inp = document.getElementById('trimEditInput_' + id);
+  const newName = inp.value.trim();
+  if (!newName) { showToast('Введите название', 'error'); return; }
+  if (useLocal) {
+    let data = LS._read('trims');
+    data = data.map(t => t.id === id ? { ...t, name: newName } : t);
+    LS._write('trims', data);
+  } else {
+    const { error } = await sb.from('trims').update({ name: newName }).eq('id', id);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+  showToast('Изменено', 'success');
+  state.trims = await fetchTrims();
+  renderTrimList();
+}
+
+async function addTrim() {
+  const name = $('newTrimName').value.trim();
+  if (!name) { showToast('Введите название', 'error'); return; }
+  if (useLocal) {
+    await LS.insert('trims', { name });
+  } else {
+    const { error } = await sb.from('trims').insert({ name });
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+  $('newTrimName').value = '';
+  showToast('Комплектация добавлена', 'success');
+  state.trims = await fetchTrims();
+  renderTrimList();
+}
+
+async function deleteTrim(id, name) {
+  const ok = await showModal('Удалить комплектацию?', `"${name}" будет удалена`);
+  if (!ok) return;
+  if (useLocal) {
+    await LS.delete('trims', { id });
+  } else {
+    const { error } = await sb.from('trims').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+  showToast('Удалено', 'success');
+  state.trims = await fetchTrims();
+  renderTrimList();
+}
+
+// ===================== SEARCHABLE SELECT =====================
+const ssData = {}; // stores options per id
+
+function ssRender(id, query = '') {
+  const items = ssData[id] || [];
+  const drop = $(id + 'Dropdown');
+  const q = query.toLowerCase();
+  const filtered = q ? items.filter(v => v.toLowerCase().includes(q)) : items;
+  if (!filtered.length) {
+    drop.innerHTML = `<div class="ss-empty">${q ? 'Ничего не найдено' : 'Нет вариантов'}</div>`;
+  } else {
+    const cur = $(id).value;
+    drop.innerHTML = filtered.map(v =>
+      `<div class="ss-option${v === cur ? ' selected' : ''}" onmousedown="ssSelect('${id}','${v.replace(/'/g,"\\'")}')"> ${v}</div>`
+    ).join('');
+  }
+}
+
+function ssToggle(id) {
+  const drop = $(id + 'Dropdown');
+  if (drop.classList.contains('open')) {
+    drop.classList.remove('open');
+    $(id + 'Input').blur();
+  } else {
+    ssRender(id, $(id + 'Input').value);
+    drop.classList.add('open');
+  }
+}
+function ssFilter(id) {
+  const q = $(id + 'Input').value;
+  if (!q) $(id).value = '';
+  ssRender(id, q);
+  $(id + 'Dropdown').classList.add('open');
+}
+
+function ssOpen(id) {
+  const drop = $(id + 'Dropdown');
+  if (!drop.classList.contains('open')) {
+    ssRender(id, $(id + 'Input').value);
+    drop.classList.add('open');
+  }
+}
+
+function ssBlur(id) {
+  setTimeout(() => $(id + 'Dropdown').classList.remove('open'), 150);
+}
+
+function ssSelect(id, value) {
+  $(id).value = value;
+  $(id + 'Input').value = value;
+  $(id + 'Dropdown').classList.remove('open');
+  ssRender(id, '');
+}
+
+function ssInit(id, items, currentValue = '') {
+  ssData[id] = items;
+  $(id).value = currentValue;
+  $(id + 'Input').value = currentValue;
+  ssRender(id);
+}
+
+async function loadTrimSelect() {
+  if (!state.trims) state.trims = await fetchTrims();
+  updateTrimsBySegment();
+}
+
+function updateTrimsBySegment() {
+  const seg = ($('saleSegment') && $('saleSegment').value) || 'CKD';
+  const all = (state.trims || []).map(t => t.name);
+  const filtered = seg === 'CKD'
+    ? all.filter(n => n.toLowerCase().includes('sonet'))
+    : all.filter(n => !n.toLowerCase().includes('sonet'));
+  // reset current selection if it doesn't match new segment
+  const cur = $('saleTrim') && $('saleTrim').value;
+  const keep = filtered.includes(cur) ? cur : '';
+  ssInit('saleTrim', filtered, keep);
+}
+
+// ===================== COLOR CRUD =====================
+async function fetchColors() {
+  if (useLocal) {
+    const { data } = await LS.select('colors', { _order: ['name', 'asc'] });
+    return data || [];
+  }
+  const { data } = await sb.from('colors').select('*').order('name');
+  return data || [];
+}
+
+function renderColorList() {
+  const colors = state.colors || [];
+  if (!colors.length) {
+    $('colorManageList').innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">Нет цветов</div>';
+    return;
+  }
+  $('colorManageList').innerHTML = colors.map(c => `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:8px;background:var(--card);border:1px solid var(--sep);border-radius:12px;">
+      <div class="setting-label" id="colorName_${c.id}" style="flex:1">${c.name}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px" onclick="editColor('${c.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-sm btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteColor('${c.id}','${c.name}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+function editColor(id) {
+  const c = (state.colors || []).find(x => x.id === id);
+  if (!c) return;
+  const el = document.getElementById('colorName_' + id);
+  el.innerHTML = `<div style="display:flex;gap:6px;align-items:center">
+    <input class="form-input" id="colorEditInput_${id}" value="${c.name}" style="padding:6px 10px;font-size:14px">
+    <button class="btn btn-sm btn-green" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="saveColor('${id}')">OK</button>
+  </div>`;
+  const inp = document.getElementById('colorEditInput_' + id);
+  inp.focus(); inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveColor(id); });
+}
+
+async function saveColor(id) {
+  const inp = document.getElementById('colorEditInput_' + id);
+  const newName = inp.value.trim();
+  if (!newName) { showToast('Введите цвет', 'error'); return; }
+  if (useLocal) {
+    let data = LS._read('colors');
+    data = data.map(c => c.id === id ? { ...c, name: newName } : c);
+    LS._write('colors', data);
+  } else {
+    const { error } = await sb.from('colors').update({ name: newName }).eq('id', id);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+  showToast('Изменено', 'success');
+  state.colors = await fetchColors();
+  renderColorList();
+}
+
+async function addColor() {
+  const name = $('newColorName').value.trim();
+  if (!name) { showToast('Введите цвет', 'error'); return; }
+  if (useLocal) { await LS.insert('colors', { name }); }
+  else {
+    const { error } = await sb.from('colors').insert({ name });
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+  $('newColorName').value = '';
+  showToast('Цвет добавлен', 'success');
+  state.colors = await fetchColors();
+  renderColorList();
+}
+
+async function deleteColor(id, name) {
+  const ok = await showModal('Удалить цвет?', `"${name}" будет удалён`);
+  if (!ok) return;
+  if (useLocal) { await LS.delete('colors', { id }); }
+  else {
+    const { error } = await sb.from('colors').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+  showToast('Удалено', 'success');
+  state.colors = await fetchColors();
+  renderColorList();
+}
+
+async function loadColorSelect() {
+  if (!state.colors) state.colors = await fetchColors();
+  ssInit('saleColor', (state.colors || []).map(c => c.name));
+}
+
+// ===================== REPORT =====================
+function destroyCharts() {
+  Object.values(state._charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  state._charts = {};
+}
+
+const chartDefaults = {
+  font: { family: "'Inter',-apple-system,sans-serif" },
+  color: '#8E8E93'
+};
+
+async function loadReport() {
+  destroyCharts();
+  const m = state.reportMonth, y = state.reportYear;
+  $('reportMonthLabel').textContent = monthNames[m-1] + ' ' + y;
+  $('reportSubtitle').textContent = '';
+
+  try {
+    const [managers, sales, plans, dailyStats] = await Promise.all([
+      fetchManagers(), fetchSales(m, y), fetchPlans(m, y), fetchStatsByMonth(m, y)
+    ]);
+    state.managers = managers;
+
+    // Totals — use only overall plan rows (no manager_id) to avoid double-counting
+    const overallPlans = plans.filter(p => !p.manager_id);
+    const totalPlanSum = overallPlans.reduce((a,p)=>a+Number(p.sum_plan||0),0);
+    const totalPlanQty = overallPlans.reduce((a,p)=>a+Number(p.qty_plan||0),0);
+    const totalFactSum = sales.reduce((a,s)=>a+Number(s.sum||0),0);
+    const totalFactQty = sales.reduce((a,s)=>a+Number(s.qty||0),0);
+    const totalPct = totalPlanSum>0 ? Math.round(totalFactSum/totalPlanSum*100) : 0;
+
+    // Segments
+    const segSum  = (arr, sg, k) => arr.filter(x=>x.segment===sg).reduce((a,x)=>a+Number(x[k]||0),0);
+    const ckdFact = segSum(sales,'CKD','sum'),  ckdQty  = segSum(sales,'CKD','qty');
+    const dkdFact = segSum(sales,'DKD','sum'),  dkdQty  = segSum(sales,'DKD','qty');
+    const ckdPlan = segSum(overallPlans,'CKD','sum_plan'), ckdPlanQty = segSum(overallPlans,'CKD','qty_plan');
+    const dkdPlan = segSum(overallPlans,'DKD','sum_plan'), dkdPlanQty = segSum(overallPlans,'DKD','qty_plan');
+    const ckdPct  = ckdPlan>0 ? Math.round(ckdFact/ckdPlan*100) : 0;
+    const dkdPct  = dkdPlan>0 ? Math.round(dkdFact/dkdPlan*100) : 0;
+
+    // Leasing
+    const leasSales = sales.filter(s=>s.leasing==1||s.leasing===true);
+    const leasQty   = leasSales.reduce((a,s)=>a+Number(s.qty||0),0);
+    const leasPct   = totalFactQty>0 ? Math.round(leasQty/totalFactQty*100) : 0;
+
+    // Avg check
+    const avgCheck = totalFactQty > 0 ? Math.round(totalFactSum / totalFactQty) : 0;
+
+    // Traffic
+    const totalTraffic   = dailyStats.reduce((a,r)=>a+Number(r.traffic||0),0);
+    const totalTD        = dailyStats.reduce((a,r)=>a+Number(r.test_drives||0),0);
+    const totalContracts = dailyStats.reduce((a,r)=>a+Number(r.contracts||0),0);
+    const convTD  = totalTraffic>0 ? Math.round(totalTD/totalTraffic*100) : 0;
+    const convDog = totalTraffic>0 ? Math.round(totalContracts/totalTraffic*100) : 0;
+    const convSale = totalTraffic>0 ? Math.round(totalFactQty/totalTraffic*100) : 0;
+
+    // === KPI block ===
+    $('reportKpi').innerHTML = `
+      <div class="r-kpi-grid">
+        <div class="r-kpi" style="grid-column:1/-1;background:linear-gradient(135deg,#1B3A6B,#2A5298)">
+          <div class="r-kpi-lbl" style="color:rgba(255,255,255,.7)">Факт поступлений</div>
+          <div class="r-kpi-val" style="color:#fff;font-size:26px">${fmtNum(totalFactSum)}</div>
+          <div class="r-kpi-sub" style="color:rgba(255,255,255,.7)">${totalFactQty} шт · план ${fmtNum(totalPlanSum)} · <b style="color:#fff">${totalPct}%</b></div>
+        </div>
+        <div class="r-kpi">
+          <div class="r-kpi-lbl">CKD</div>
+          <div class="r-kpi-val" style="color:${pctColor(ckdPct)}">${ckdPct}%</div>
+          <div class="r-kpi-sub">${fmtNum(ckdFact)} · ${ckdQty} шт</div>
+        </div>
+        <div class="r-kpi">
+          <div class="r-kpi-lbl">DKD</div>
+          <div class="r-kpi-val" style="color:${pctColor(dkdPct)}">${dkdPct}%</div>
+          <div class="r-kpi-sub">${fmtNum(dkdFact)} · ${dkdQty} шт</div>
+        </div>
+        <div class="r-kpi">
+          <div class="r-kpi-lbl">Лизинг</div>
+          <div class="r-kpi-val">${leasQty} шт</div>
+          <div class="r-kpi-sub">${leasPct}% от продаж</div>
+        </div>
+        <div class="r-kpi">
+          <div class="r-kpi-lbl">Конверсия</div>
+          <div class="r-kpi-val" style="color:${pctColorHex(convSale)}">${convSale}%</div>
+          <div class="r-kpi-sub">трафик → продажа</div>
+        </div>
+      </div>`;
+
+    // === Traffic block ===
+    $('reportTraffic').innerHTML = `
+      <div class="d-traffic-grid" style="padding:0 16px 4px">
+        <div class="d-traffic-card">
+          <div class="d-traffic-lbl">Трафик</div>
+          <div class="d-traffic-val">${totalTraffic}</div>
+          <div class="d-traffic-sub">посетителей</div>
+        </div>
+        <div class="d-traffic-card">
+          <div class="d-traffic-lbl">Тест-драйв</div>
+          <div class="d-traffic-val">${totalTD}</div>
+          <div class="d-traffic-sub">конверсия <b style="color:${pctColor(convTD)}">${convTD}%</b></div>
+        </div>
+        <div class="d-traffic-card">
+          <div class="d-traffic-lbl">Договоров</div>
+          <div class="d-traffic-val">${totalContracts}</div>
+          <div class="d-traffic-sub">выдано</div>
+        </div>
+        <div class="d-traffic-card" style="background:linear-gradient(135deg,#1B3A6B,#2A5298)">
+          <div class="d-traffic-lbl" style="color:rgba(255,255,255,.65)">Конверсия</div>
+          <div class="d-traffic-val" style="color:#fff">${convDog}%</div>
+          <div class="d-traffic-sub" style="color:rgba(255,255,255,.65)">трафик → продажа</div>
+        </div>
+      </div>`;
+
+    // === Funnel ===
+    const funnelSteps = [
+      { label: 'Трафик',      val: totalTraffic,   color: '#1B3A6B', fromPrev: null },
+      { label: 'Тест-драйв',  val: totalTD,        color: '#2A5298', fromPrev: totalTraffic },
+      { label: 'Договора',    val: totalContracts, color: '#FF9500', fromPrev: totalTraffic },
+      { label: 'Продажи',     val: totalFactQty,   color: '#34C759', fromPrev: totalTraffic },
+    ];
+    const fMax = Math.max(...funnelSteps.map(s=>s.val), 1);
+    let fHtml = '<div style="padding:0 16px 4px"><div class="card" style="padding:16px">';
+    funnelSteps.forEach((s, i) => {
+      const w = s.val > 0 ? Math.max(Math.round(s.val/fMax*100), 10) : 4;
+      const convPct = s.fromPrev != null && s.fromPrev > 0 ? Math.round(s.val/s.fromPrev*100) : null;
+      const convLabel = convPct != null ? `<span style="font-size:11px;color:var(--text2);margin-left:6px">${convPct}%</span>` : '';
+      fHtml += `<div style="margin-bottom:${i<3?'10':'0'}px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <div style="font-size:13px;font-weight:600;color:var(--text)">${s.label}${convLabel}</div>
+          <div style="font-size:15px;font-weight:800;color:var(--text)">${s.val}</div>
+        </div>
+        <div style="height:32px;background:var(--sep);border-radius:8px;overflow:hidden">
+          <div style="height:100%;width:${w}%;background:${s.color};border-radius:8px;display:flex;align-items:center;padding-left:10px;transition:width .6s ease">
+            ${s.val>0?`<span style="font-size:11px;color:rgba(255,255,255,0.85);font-weight:600">${s.label}</span>`:''}
+          </div>
+        </div>
+        ${i<3?`<div style="display:flex;justify-content:center;margin-top:6px"><svg width="12" height="10" viewBox="0 0 12 10" fill="${s.color}" opacity=".4"><polygon points="6,10 0,0 12,0"/></svg></div>`:''}
+      </div>`;
+    });
+    fHtml += '</div></div>';
+    $('reportFunnel').innerHTML = fHtml;
+
+    // === Per manager ===
+    const mgrStats = managers.map(mgr => {
+      const mSales  = sales.filter(s=>s.manager_id===mgr.id);
+      const mSum    = mSales.reduce((a,s)=>a+Number(s.sum||0),0);
+      const mQty    = mSales.reduce((a,s)=>a+Number(s.qty||0),0);
+      const mPlan    = plans.filter(p=>p.manager_id===mgr.id).reduce((a,p)=>a+Number(p.sum_plan||0),0);
+      const mPlanQty = plans.filter(p=>p.manager_id===mgr.id).reduce((a,p)=>a+Number(p.qty_plan||0),0);
+      const mPct     = mPlanQty > 0 ? Math.round(mQty/mPlanQty*100) : (mPlan>0 ? Math.round(mSum/mPlan*100) : -1);
+      const mDs     = dailyStats.filter(d=>d.manager_id===mgr.id);
+      const mTr     = mDs.reduce((a,d)=>a+Number(d.traffic||0),0);
+      const mTD     = mDs.reduce((a,d)=>a+Number(d.test_drives||0),0);
+      const mContr  = mDs.reduce((a,d)=>a+Number(d.contracts||0),0);
+      const mConv   = mTr>0 ? Math.round(mContr/mTr*100) : -1;
+      return { ...mgr, mSum, mQty, mPlan, mPlanQty, mPct, mTr, mTD, mContr, mConv };
+    }).sort((a,b)=>b.mSum-a.mSum);
+
+    let mgrHtml = '';
+    if (!mgrStats.some(m=>m.mSum>0||m.mTr>0)) {
+      mgrHtml = '<div class="card" style="margin:0 16px 4px"><div class="empty"><div class="empty-text">Нет данных</div></div></div>';
+    } else {
+      mgrHtml = mgrStats.map((m, i) => {
+        const barW = m.mPlanQty>0 ? Math.min(Math.round(m.mQty/m.mPlanQty*100),100) : (m.mPlan>0 ? Math.min(Math.round(m.mSum/m.mPlan*100),100) : 0);
+        const mLeasSales = sales.filter(s=>s.manager_id===m.id&&(s.leasing==1||s.leasing===true));
+        const mLeasQty   = mLeasSales.reduce((a,s)=>a+Number(s.qty||0),0);
+        const mLeasPct   = m.mQty>0 ? Math.round(mLeasQty/m.mQty*100) : 0;
+        const mAvgChek   = m.mQty>0 ? Math.round(m.mSum/m.mQty) : 0;
+        const pHex = pctColorHex(m.mPct>=0?m.mPct:0);
+        return `<div class="card" style="margin:0 16px 10px;padding:14px 14px 12px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">${i+1}</div>
+              <div>
+                <div style="font-size:15px;font-weight:700">${m.name}</div>
+                <div style="font-size:11px;color:var(--text2)">${fmtNum(m.mSum)} · ${m.mQty} шт</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:22px;font-weight:800;color:${pHex};line-height:1">${m.mPct>=0?m.mPct+'%':'—'}</div>
+              <div style="font-size:10px;color:var(--text2)">плана</div>
+            </div>
+          </div>
+          ${m.mPlan>0?`<div style="height:5px;background:var(--sep);border-radius:3px;margin-bottom:12px;overflow:hidden"><div style="height:100%;width:${barW}%;background:${pHex};border-radius:3px"></div></div>`:''}
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+            <div style="background:rgba(27,58,107,0.08);border-radius:10px;padding:10px 8px;text-align:center">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#1B3A6B;margin-bottom:4px">Трафик</div>
+              <div style="font-size:20px;font-weight:800;color:#1B3A6B">${m.mTr}</div>
+              <div style="font-size:10px;color:var(--text2)">визитов</div>
+            </div>
+            <div style="background:rgba(52,199,89,0.1);border-radius:10px;padding:10px 8px;text-align:center">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#1E7A35;margin-bottom:4px">Тест-драйв</div>
+              <div style="font-size:20px;font-weight:800;color:#1E7A35">${m.mTD}</div>
+              <div style="font-size:10px;color:var(--text2)">${m.mTr>0?Math.round(m.mTD/m.mTr*100)+'%':'—'} конв.</div>
+            </div>
+            <div style="background:rgba(255,149,0,0.1);border-radius:10px;padding:10px 8px;text-align:center">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#CC7800;margin-bottom:4px">Договора</div>
+              <div style="font-size:20px;font-weight:800;color:#CC7800">${m.mContr}</div>
+              <div style="font-size:10px;color:var(--text2)">${m.mTr>0?Math.round(m.mContr/m.mTr*100)+'%':'—'} конв.</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+    $('reportManagers').innerHTML = mgrHtml;
+
+    // === Conversion rating ===
+    const convSorted = [...mgrStats].filter(m=>m.mConv>=0).sort((a,b)=>b.mConv-a.mConv);
+    let convHtml = '<div class="card" style="margin:0 16px 4px">';
+    if (!convSorted.length) {
+      convHtml += '<div style="color:var(--text2);font-size:13px;padding:4px 0">Нет данных</div>';
+    } else {
+      const maxConv = convSorted[0].mConv || 1;
+      convSorted.forEach((m, i) => {
+        const w = Math.round(m.mConv/maxConv*100);
+        convHtml += `<div class="r-row">
+          <div class="r-pos">${i+1}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+              <span style="font-size:13px;font-weight:600">${m.name.split(' ')[0]}</span>
+              <span style="font-size:13px;font-weight:800;color:${pctColorHex(m.mConv)}">${m.mConv}%</span>
+            </div>
+            <div style="height:5px;background:var(--sep);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:${w}%;background:${pctColorHex(m.mConv)};border-radius:3px"></div>
+            </div>
+            <div style="font-size:10px;color:var(--text2);margin-top:3px">Тр: ${m.mTr} · Дог: ${m.mContr}</div>
+          </div>
+        </div>`;
+      });
+    }
+    convHtml += '</div>';
+    $('reportConvRating').innerHTML = convHtml;
+
+    // === By trim ===
+    const trimMap = {}, trimRevMap = {};
+    sales.forEach(s => {
+      if (s.trim) {
+        trimMap[s.trim]    = (trimMap[s.trim]||0)    + Number(s.qty||0);
+        trimRevMap[s.trim] = (trimRevMap[s.trim]||0) + Number(s.sum||0);
+      }
+    });
+    const trimEntries = Object.entries(trimMap).sort((a,b)=>b[1]-a[1]);
+    let trimHtml = '<div class="card" style="margin:0 16px 4px">';
+    if (!trimEntries.length) {
+      trimHtml += '<div style="color:var(--text2);font-size:13px;padding:4px 0">Нет данных</div>';
+    } else {
+      const maxT = trimEntries[0][1];
+      trimEntries.forEach(([name, qty]) => {
+        const w = Math.round(qty/maxT*100);
+        const rev = trimRevMap[name]||0;
+        trimHtml += `<div style="padding:10px 0;border-bottom:0.5px solid var(--sep)">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+            <span style="font-size:13px;font-weight:600">${name}</span>
+            <span style="font-size:13px;font-weight:700">${qty} шт</span>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:5px">${fmtNum(rev)}</div>
+          <div style="height:5px;background:var(--sep);border-radius:3px;overflow:hidden"><div style="height:100%;width:${w}%;background:var(--accent);border-radius:3px"></div></div>
+        </div>`;
+      });
+    }
+    trimHtml += '</div>';
+    $('reportTrims').innerHTML = trimHtml;
+
+    // === By color ===
+    const colorMap = {};
+    sales.forEach(s => {
+      if (s.color) { colorMap[s.color] = (colorMap[s.color]||0) + Number(s.qty||0); }
+    });
+    const colorEntries = Object.entries(colorMap).sort((a,b)=>b[1]-a[1]);
+    let colorHtml = '<div class="card" style="margin:0 16px 16px">';
+    if (!colorEntries.length) {
+      colorHtml += '<div style="color:var(--text2);font-size:13px;padding:4px 0">Нет данных</div>';
+    } else {
+      const maxC = colorEntries[0][1];
+      colorEntries.forEach(([name, qty]) => {
+        const w = Math.round(qty/maxC*100);
+        colorHtml += `<div style="padding:9px 0;border-bottom:0.5px solid var(--sep)">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+            <span style="font-weight:500">${name}</span><span style="color:var(--text2)">${qty} шт</span>
+          </div>
+          <div style="height:4px;background:var(--sep);border-radius:2px"><div style="height:100%;width:${w}%;background:var(--accent-light);border-radius:2px"></div></div>
+        </div>`;
+      });
+    }
+    colorHtml += '</div>';
+    $('reportColors').innerHTML = colorHtml;
+
+    // ===== CHARTS =====
+    Chart.defaults.font.family = chartDefaults.font.family;
+    Chart.defaults.color = chartDefaults.color;
+
+    // 1. Plan donut
+    const planRemain = Math.max(0, totalPlanSum - totalFactSum);
+    $('chartPlanCenter').innerHTML = `
+      <div style="font-size:20px;font-weight:800;color:${pctColorHex(totalPct)}">${totalPct}%</div>
+      <div style="font-size:10px;color:var(--text2);font-weight:500">плана</div>`;
+    state._charts.plan = new Chart($('chartPlan'), {
+      type: 'doughnut',
+      data: {
+        datasets: [{
+          data: [totalFactSum || 1, planRemain],
+          backgroundColor: [pctColorHex(totalPct), '#E5E5EA'],
+          borderWidth: 0,
+          hoverOffset: 0
+        }]
+      },
+      options: {
+        cutout: '72%',
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+        animation: { duration: 700, easing: 'easeOutQuart' }
+      }
+    });
+    $('chartPlanLegend').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div>
+          <div style="font-size:11px;color:var(--text2);font-weight:500">Факт</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${fmtNum(totalFactSum)}</div>
+          <div style="font-size:11px;color:var(--text2)">${totalFactQty} шт</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--text2);font-weight:500">План</div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">${fmtNum(totalPlanSum)}</div>
+          <div style="font-size:11px;color:var(--text2)">${totalPlanQty} шт</div>
+        </div>
+      </div>`;
+
+    // 2. CKD vs DKD — CSS segments
+    const segs = [
+      { name: 'CKD', fact: ckdFact, plan: ckdPlan, factQty: ckdQty, planQty: ckdPlanQty, pct: ckdPct },
+      { name: 'DKD', fact: dkdFact, plan: dkdPlan, factQty: dkdQty, planQty: dkdPlanQty, pct: dkdPct },
+    ];
+    $('reportSegments').innerHTML = '<div style="padding:0 16px 4px"><div class="card" style="padding:0;overflow:hidden">' +
+      segs.map((s, i) => {
+        const barW = s.plan > 0 ? Math.min(Math.round(s.fact/s.plan*100), 100) : (s.fact>0?100:0);
+        const hex = pctColorHex(s.pct);
+        return `<div style="padding:14px 16px;${i>0?'border-top:0.5px solid var(--sep)':''}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:16px;font-weight:800;color:var(--text)">${s.name}</span>
+            <span style="font-size:22px;font-weight:800;color:${hex};line-height:1">${s.pct}%</span>
+          </div>
+          <div style="height:10px;background:var(--sep);border-radius:6px;overflow:hidden;margin-bottom:8px">
+            <div style="height:100%;width:${barW}%;background:${hex};border-radius:6px;transition:width .6s ease"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <div>
+              <div style="font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;margin-bottom:2px">Факт</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text)">${fmtNum(s.fact)}</div>
+              <div style="font-size:11px;color:var(--text2)">${s.factQty} шт</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:10px;color:var(--text2);font-weight:600;text-transform:uppercase;margin-bottom:2px">План</div>
+              <div style="font-size:13px;font-weight:700;color:var(--text2)">${fmtNum(s.plan)}</div>
+              <div style="font-size:11px;color:var(--text2)">${s.planQty} шт</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('') + '</div></div>';
+
+    // 3. Traffic trend line chart
+    const dateMap = {};
+    dailyStats.forEach(r => {
+      if (!dateMap[r.date]) dateMap[r.date] = { tr: 0, td: 0, dog: 0 };
+      dateMap[r.date].tr  += Number(r.traffic||0);
+      dateMap[r.date].td  += Number(r.test_drives||0);
+      dateMap[r.date].dog += Number(r.contracts||0);
+    });
+    const sortedDates = Object.keys(dateMap).sort();
+    const dayLabels = sortedDates.map(d => {
+      const dt = new Date(d + 'T00:00:00');
+      return `${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`;
+    });
+
+    if (sortedDates.length > 0) {
+      state._charts.traffic = new Chart($('chartTraffic'), {
+        type: 'line',
+        data: {
+          labels: dayLabels,
+          datasets: [
+            { label: 'Трафик', data: sortedDates.map(d=>dateMap[d].tr), borderColor: '#1B3A6B', backgroundColor: 'rgba(27,58,107,0.08)', tension: 0.4, fill: true, pointRadius: 3, pointBackgroundColor: '#1B3A6B', borderWidth: 2 },
+            { label: 'Тест-драйв', data: sortedDates.map(d=>dateMap[d].td), borderColor: '#34C759', backgroundColor: 'transparent', tension: 0.4, fill: false, pointRadius: 3, pointBackgroundColor: '#34C759', borderWidth: 2 },
+            { label: 'Договоры', data: sortedDates.map(d=>dateMap[d].dog), borderColor: '#FF9500', backgroundColor: 'transparent', tension: 0.4, fill: false, pointRadius: 3, pointBackgroundColor: '#FF9500', borderWidth: 2 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10, padding: 10 } }, tooltip: { mode: 'index', intersect: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: 'rgba(60,60,67,0.08)' } },
+            x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+          }
+        }
+      });
+    } else {
+      $('chartTraffic').parentElement.innerHTML += '<div style="color:var(--text2);font-size:13px;text-align:center;padding:16px 0">Нет данных за этот месяц</div>';
+    }
+
+    // 4. Manager horizontal bar
+    const mgrChartData = mgrStats.filter(m=>m.mSum>0||m.mPlan>0).slice(0, 8);
+    if (mgrChartData.length > 0) {
+      state._charts.managers = new Chart($('chartManagers'), {
+        type: 'bar',
+        data: {
+          labels: mgrChartData.map(m => m.name.split(' ')[0]),
+          datasets: [
+            { label: 'Факт', data: mgrChartData.map(m=>m.mSum), backgroundColor: mgrChartData.map(m=>pctColorHex(m.mPct>=0?m.mPct:0)+'CC'), borderRadius: 6, borderSkipped: false },
+            { label: 'План', data: mgrChartData.map(m=>m.mPlan), backgroundColor: 'rgba(0,0,0,0.06)', borderRadius: 6, borderSkipped: false }
+          ]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true, maintainAspectRatio: true,
+          plugins: {
+            legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 10, padding: 10 } },
+            tooltip: { callbacks: { label: ctx => ' ' + fmtNum(ctx.raw) } }
+          },
+          scales: {
+            x: { beginAtZero: true, ticks: { font: { size: 10 }, callback: v => v>=1e9?(v/1e9).toFixed(1)+'B':v>=1e6?(v/1e6).toFixed(0)+'M':v }, grid: { color: 'rgba(60,60,67,0.08)' } },
+            y: { ticks: { font: { size: 12, weight: '600' } }, grid: { display: false } }
+          }
+        }
+      });
+    } else {
+      $('chartManagers').parentElement.innerHTML += '<div style="color:var(--text2);font-size:13px;text-align:center;padding:16px 0">Нет данных</div>';
+    }
+
+  } catch(e) { console.error(e); }
+}
+
+function changeReportMonth(dir) {
+  state.reportMonth += dir;
+  if (state.reportMonth > 12) { state.reportMonth = 1; state.reportYear++; }
+  if (state.reportMonth < 1)  { state.reportMonth = 12; state.reportYear--; }
+  loadReport();
+}
+
+// ===================== MODAL =====================
+let modalResolve = null;
+
+function showModal(title, msg) {
+  return new Promise(resolve => {
+    modalResolve = resolve;
+    $('modalTitle').textContent = title;
+    $('modalMsg').textContent = msg;
+    $('modalOverlay').classList.add('open');
+  });
+}
+
+function closeModal(result) {
+  $('modalOverlay').classList.remove('open');
+  if (modalResolve) { modalResolve(result); modalResolve = null; }
+}
+
+// ===================== STATS =====================
+async function loadStats() {
+  const m = currentMonth(), y = currentYear();
+  $('statsSubtitle').textContent = `${monthNames[m-1]} ${y}`;
+
+  if (!state.managers.length) state.managers = await fetchManagers();
+
+  const curMgr = $('statManager').value;
+  ssInit('statManager', state.managers.map(m => m.name), curMgr);
+
+  if (!$('statDate').value) {
+    const today = new Date();
+    $('statDate').value = today.toISOString().slice(0, 10);
+  }
+
+  const allStats = await fetchStatsByMonth(m, y);
+  state.allDailyStats = allStats;
+  filterStatsByDate();
+}
+
+function filterStatsByDate() {
+  const selectedDate = $('statDate').value;
+  const allStats = state.allDailyStats || [];
+  if (selectedDate) {
+    const filtered = allStats.filter(r => r.date === selectedDate);
+    const d = new Date(selectedDate + 'T00:00:00');
+    const label = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    $('statsListTitle').textContent = `Отчёт за ${label}`;
+    renderStatsList(filtered, false);
+  } else {
+    $('statsListTitle').textContent = 'История отчётов';
+    renderStatsList(allStats, true);
+  }
+}
+
+async function fetchStatsByMonth(month, year) {
+  if (useLocal) {
+    const { data } = await LS.select('daily_stats');
+    return (data || []).filter(r => {
+      const d = new Date(r.date);
+      return d.getMonth() + 1 === month && d.getFullYear() === year;
+    }).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  const start = `${year}-${String(month).padStart(2,'0')}-01`;
+  const endMonth = month === 12 ? 1 : month + 1;
+  const endYear  = month === 12 ? year + 1 : year;
+  const end = `${endYear}-${String(endMonth).padStart(2,'0')}-01`;
+  const { data, error } = await sb.from('daily_stats').select('*')
+    .gte('date', start).lt('date', end).order('date', { ascending: false });
+  if (error) { showToast('Ошибка загрузки статистики', 'error'); return []; }
+  return data || [];
+}
+
+function renderStatsList(records, showDates = true) {
+  if (!records.length) {
+    $('statsList').innerHTML = '<div class="empty"><div class="empty-icon">📈</div><div class="empty-text">Нет данных</div></div>';
+    return;
+  }
+
+  const groups = {};
+  records.forEach(r => {
+    if (!groups[r.date]) groups[r.date] = [];
+    groups[r.date].push(r);
+  });
+
+  let html = '';
+  Object.keys(groups).sort((a,b) => b.localeCompare(a)).forEach(date => {
+    const d = new Date(date + 'T00:00:00');
+    const dateStr = `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+    const rows = groups[date];
+    const totalTraffic = rows.reduce((a,r) => a + Number(r.traffic||0), 0);
+    const totalTD = rows.reduce((a,r) => a + Number(r.test_drives||0), 0);
+    const totalContracts = rows.reduce((a,r) => a + Number(r.contracts||0), 0);
+
+    if (showDates) {
+      html += `<div class="stats-day-group">
+        <div class="stats-day-header">
+          <span class="stats-day-date">${dateStr}</span>
+          <span class="stats-day-total">Тр: ${totalTraffic} · ТД: ${totalTD} · Дог: ${totalContracts}</span>
+        </div>`;
+    } else {
+      html += `<div class="stats-day-group">
+        <div class="stats-day-header">
+          <span class="stats-day-total" style="font-size:12px">Трафик: ${totalTraffic} · Тест-драйв: ${totalTD} · Договоров: ${totalContracts}</span>
+        </div>`;
+    }
+
+    rows.forEach(r => {
+      const mgr = state.managers.find(m => m.id === r.manager_id);
+      const mgrName = mgr ? mgr.name.split(' ')[0] : (r.manager_id ? 'Удалён' : '—');
+      html += `<div class="stats-row-item">
+        <div class="stats-row-mgr">${mgrName}</div>
+        <div class="stats-row-data">
+          <span class="stats-badge stats-badge-blue">🚶 ${r.traffic||0}</span>
+          <span class="stats-badge stats-badge-green">🚗 ${r.test_drives||0}</span>
+          <span class="stats-badge" style="background:rgba(255,149,0,0.12);color:var(--orange)">📄 ${r.contracts||0}</span>
+        </div>
+        <button class="sale-delete" onclick="deleteStat('${r.id}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        </button>
+      </div>`;
+    });
+
+    html += `</div>`;
+  });
+
+  $('statsList').innerHTML = html;
+}
+
+async function addStat() {
+  const mgrName = $('statManager').value;
+  const mgrObj = state.managers.find(m => m.name === mgrName);
+  const managerId = mgrObj ? mgrObj.id : '';
+  const date = $('statDate').value;
+  const traffic = parseInt($('statTraffic').value) || 0;
+  const testDrives = parseInt($('statTestDrive').value) || 0;
+  const contracts = parseInt($('statContracts').value) || 0;
+
+  if (!managerId) { showToast('Выберите менеджера', 'error'); return; }
+  if (!date) { showToast('Укажите дату', 'error'); return; }
+  if (traffic === 0 && testDrives === 0 && contracts === 0) { showToast('Заполните хотя бы одно поле', 'error'); return; }
+
+  const row = { manager_id: managerId, date, traffic, test_drives: testDrives, contracts, created_at: new Date().toISOString() };
+
+  if (useLocal) {
+    await LS.insert('daily_stats', row);
+  } else {
+    const { error } = await sb.from('daily_stats').insert(row);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  showToast('Отчёт сохранён', 'success');
+  $('statTraffic').value = '';
+  $('statTestDrive').value = '';
+  $('statContracts').value = '';
+  loadStats();
+}
+
+async function deleteStat(id) {
+  const ok = await showModal('Удалить запись?', 'Это действие нельзя отменить');
+  if (!ok) return;
+  if (useLocal) {
+    await LS.delete('daily_stats', { id });
+  } else {
+    const { error } = await sb.from('daily_stats').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+  showToast('Запись удалена', 'success');
+  loadStats();
+}
+
+// ===================== TOAST =====================
+let toastTimer;
+function toggleDatePicker(el) {
+  if (el._pickerOpen) {
+    el._pickerOpen = false;
+    el.blur();
+  } else {
+    el._pickerOpen = true;
+    try { el.showPicker(); } catch(e) {}
+    el.addEventListener('blur', () => { el._pickerOpen = false; }, { once: true });
+  }
+}
+
+function formatSumInput(el) {
+  const raw = el.value.replace(/\s/g, '').replace(/[^\d]/g, '');
+  if (!raw) { el.value = ''; return; }
+  el.value = raw.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0');
+}
+
+function showToast(msg, type = 'info') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===================== AUTH =====================
+const APP_PASSWORD = 'kia2026';
+
+function openAdminModal() {
+  const m = document.getElementById('adminModal');
+  m.style.display = 'flex';
+  document.getElementById('loginInput').value = '';
+  document.getElementById('loginError').style.display = 'none';
+  setTimeout(() => document.getElementById('loginInput').focus(), 100);
+}
+
+function closeAdminModal() {
+  document.getElementById('adminModal').style.display = 'none';
+}
+
+function checkLogin() {
+  const val = document.getElementById('loginInput').value;
+  if (val === APP_PASSWORD) {
+    localStorage.setItem('kia_auth', '1');
+    document.body.classList.add('is-admin');
+    closeAdminModal();
+    showToast('Вы вошли как администратор', 'success');
+  } else {
+    document.getElementById('loginError').style.display = 'block';
+    document.getElementById('loginInput').value = '';
+  }
+}
+
+function adminLogout() {
+  localStorage.removeItem('kia_auth');
+  document.body.classList.remove('is-admin');
+  if (state.page === 'settings' || state.page === 'sales') goTo('dashboard');
+  showToast('Вы вышли из режима администратора');
+}
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('kia_auth') === '1') {
+    document.body.classList.add('is-admin');
+  }
+  goTo('dashboard');
+});
+</script>
+</body>
+</html>
