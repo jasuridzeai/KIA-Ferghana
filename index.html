@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>KIA Motors Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js?61"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F2F2F7;--card:#FFFFFF;--accent:#1B3A6B;--accent-light:#2A5298;
+  --green:#34C759;--orange:#FF9500;--red:#FF3B30;
+  --text:#1C1C1E;--text2:#8E8E93;--text3:#AEAEB2;
+  --sep:rgba(60,60,67,0.12);--radius:16px;
+  --shadow:0 2px 8px rgba(0,0,0,0.06);
+  --safe-top:env(safe-area-inset-top,0px);
+  --safe-bottom:env(safe-area-inset-bottom,0px);
+}
+html,body{
+  height:100dvh;width:100%;overflow:hidden;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-variant-numeric:tabular-nums;
+  background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+
+/* HEADER */
+.header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  background:var(--card);
+  padding:12px 16px;padding-top:calc(12px + var(--safe-top));
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:0.5px solid var(--sep);
+}
+.header-left{display:flex;align-items:center;gap:12px}
+.hamburger{
+  background:none;border:none;cursor:pointer;padding:4px;
+  display:flex;align-items:center;justify-content:center;
+}
+.hamburger svg{width:24px;height:24px;color:var(--text)}
+.header-title{font-size:17px;font-weight:600;color:var(--text)}
+.kia-logo{
+  font-size:20px;font-weight:800;letter-spacing:2px;color:var(--accent);
+}
+
+/* SIDEBAR */
+.sidebar-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;
+  opacity:0;visibility:hidden;transition:all .3s ease;
+}
+.sidebar-overlay.open{opacity:1;visibility:visible}
+.sidebar{
+  position:fixed;top:0;bottom:0;left:0;width:280px;z-index:201;
+  background:var(--card);transform:translateX(-100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;
+  padding-top:calc(20px + var(--safe-top));
+}
+.sidebar-overlay.open .sidebar{transform:translateX(0)}
+.sidebar-header{
+  padding:20px 24px;display:flex;align-items:center;gap:12px;
+  border-bottom:0.5px solid var(--sep);
+}
+.sidebar-logo{font-size:24px;font-weight:800;letter-spacing:3px;color:var(--accent)}
+.sidebar-subtitle{font-size:13px;color:var(--text2);font-weight:500}
+.sidebar-nav{padding:8px 0;flex:1}
+.sidebar-item{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 24px;cursor:pointer;
+  font-size:16px;font-weight:500;color:var(--text);
+  transition:background .15s;border:none;background:none;width:100%;text-align:left;
+}
+.sidebar-item:hover,.sidebar-item:active{background:var(--bg)}
+.sidebar-item.active{color:var(--accent);font-weight:600}
+.sidebar-item svg{width:22px;height:22px;flex-shrink:0}
+
+/* PAGES */
+.pages{
+  position:fixed;
+  top:0;bottom:0;left:0;right:0;
+  padding-top:calc(52px + var(--safe-top));
+  padding-bottom:calc(60px + var(--safe-bottom));
+  overflow:hidden;
+}
+.page{
+  display:none;height:100%;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:16px 0 24px;
+}
+.page.active{display:block}
+
+/* TABBAR */
+.tabbar{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:var(--card);
+  border-top:0.5px solid var(--sep);
+  display:flex;
+  padding-bottom:var(--safe-bottom);
+}
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:2px;padding:8px 0;cursor:pointer;
+  background:none;border:none;
+  color:var(--text3);font-size:10px;font-weight:500;
+  transition:color .2s;
+}
+.tab svg{width:24px;height:24px}
+.tab.active{color:var(--accent)}
+.tab.active svg{color:var(--accent)}
+
+/* CARDS */
+.card{
+  background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin:0 16px 12px;padding:20px;
+}
+.card-title{font-size:13px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px}
+
+/* LARGE TITLE */
+.large-title{
+  font-size:28px;font-weight:700;color:var(--text);
+  padding:4px 20px 4px;
+}
+.large-subtitle{
+  font-size:15px;color:var(--text2);padding:0 20px 16px;font-weight:500;
+}
+
+/* HERO CARD */
+.hero{
+  background:linear-gradient(135deg,#1B3A6B 0%,#2A5298 100%);
+  color:#fff;text-align:center;padding:28px 20px;
+}
+.hero .card-title{color:rgba(255,255,255,0.7)}
+.progress-ring-wrap{position:relative;display:inline-block;margin:8px 0 12px}
+.progress-ring circle{transition:stroke-dashoffset .8s ease-out}
+.progress-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;
+}
+.progress-pct{font-size:36px;font-weight:800;line-height:1}
+.progress-label{font-size:12px;opacity:.7;margin-top:4px;font-weight:500}
+.hero-stats{display:flex;justify-content:center;gap:32px;margin-top:8px}
+.hero-stat-val{font-size:20px;font-weight:700}
+.hero-stat-lbl{font-size:11px;opacity:.7;margin-top:2px}
+
+/* STAT CARDS ROW */
+.stats-row{display:flex;gap:12px;padding:0 16px;margin-bottom:12px}
+.stat-card{
+  flex:1;background:var(--card);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:16px;
+}
+.stat-card-val{font-size:24px;font-weight:700;margin-bottom:2px}
+.stat-card-lbl{font-size:12px;color:var(--text2);font-weight:500}
+
+/* SEGMENT BARS */
+.segment{margin-bottom:16px}
+.segment-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.segment-name{font-size:15px;font-weight:600}
+.segment-pct{font-size:15px;font-weight:700}
+.progress-bar{
+  height:8px;background:var(--bg);border-radius:4px;overflow:hidden;
+}
+.progress-bar-fill{
+  height:100%;border-radius:4px;transition:width .6s ease-out;min-width:0;
+}
+.segment-detail{
+  display:flex;justify-content:space-between;margin-top:6px;
+  font-size:12px;color:var(--text2);
+}
+
+/* SUMMARY TABLE */
+.summary-table{width:100%;border-collapse:collapse}
+.summary-table th{
+  text-align:left;font-size:12px;font-weight:600;color:var(--text2);
+  padding:8px 0;border-bottom:1px solid var(--sep);
+}
+.summary-table td{
+  padding:10px 0;font-size:14px;border-bottom:0.5px solid var(--sep);
+}
+.summary-table td:last-child{text-align:right;font-weight:600}
+
+/* FORMS */
+.form-group{margin-bottom:16px}
+.form-label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px}
+.form-input,.form-select{
+  width:100%;padding:12px 16px;border:1px solid var(--sep);
+  border-radius:12px;font-size:16px;font-family:inherit;
+  background:var(--bg);color:var(--text);
+  -webkit-appearance:none;appearance:none;
+  transition:border-color .2s;
+}
+.form-input:focus,.form-select:focus{
+  outline:none;border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(27,58,107,0.12);
+}
+.form-select{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238E8E93' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+  padding-right:36px;
+}
+.form-row{display:flex;gap:12px}
+.form-row .form-group{flex:1}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 24px;border-radius:12px;font-size:16px;font-weight:600;
+  border:none;cursor:pointer;font-family:inherit;
+  transition:transform .1s,opacity .2s;width:100%;
+}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-light)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-secondary{background:var(--bg);color:var(--text);border:1px solid var(--sep)}
+.btn-sm{padding:8px 16px;font-size:14px;border-radius:8px;width:auto}
+.btn-green{background:var(--green);color:#fff}
+
+/* SALE HISTORY */
+.sale-item{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:14px 0;border-bottom:0.5px solid var(--sep);
+}
+.sale-item:last-child{border-bottom:none}
+.sale-info{flex:1}
+.sale-manager{font-size:15px;font-weight:600}
+.sale-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.sale-amount{font-size:15px;font-weight:700;color:var(--accent);text-align:right}
+.sale-qty{font-size:12px;color:var(--text2);text-align:right}
+.sale-delete{
+  background:none;border:none;color:var(--red);cursor:pointer;
+  padding:8px;margin-left:8px;display:flex;
+}
+
+/* PODIUM */
+.podium{
+  display:flex;align-items:flex-end;justify-content:center;
+  gap:8px;padding:20px 16px 0;margin-bottom:20px;
+}
+.podium-item{
+  display:flex;flex-direction:column;align-items:center;
+  flex:1;max-width:120px;
+}
+.podium-item.first{order:0}
+.podium-item.second{order:-1}
+.podium-item.third{order:1}
+.podium-crown{font-size:24px;margin-bottom:4px}
+.podium-avatar{
+  width:48px;height:48px;border-radius:50%;
+  background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:700;margin-bottom:6px;
+}
+.podium-item.first .podium-avatar{
+  width:60px;height:60px;font-size:22px;
+  background:linear-gradient(135deg,#1B3A6B,#2A5298);
+  box-shadow:0 4px 16px rgba(27,58,107,0.3);
+}
+.podium-name{font-size:12px;font-weight:600;text-align:center;margin-bottom:4px;line-height:1.2}
+.podium-val{font-size:11px;color:var(--text2);margin-bottom:6px;text-align:center}
+.podium-bar{
+  width:100%;border-radius:12px 12px 0 0;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:8px;font-size:20px;font-weight:800;color:#fff;
+}
+.podium-item.first .podium-bar{background:linear-gradient(180deg,#1B3A6B,#2A5298);height:100px}
+.podium-item.second .podium-bar{background:linear-gradient(180deg,#4A7CC9,#6B9DE8);height:76px}
+.podium-item.third .podium-bar{background:linear-gradient(180deg,#8DB4F0,#A8C8F5);height:56px}
+
+/* RATING LIST */
+.rating-tabs{display:flex;gap:8px;padding:0 16px;margin-bottom:16px}
+.rating-tab{
+  padding:8px 20px;border-radius:20px;font-size:14px;font-weight:600;
+  border:none;cursor:pointer;background:var(--bg);color:var(--text2);
+  transition:all .2s;
+}
+.rating-tab.active{background:var(--accent);color:#fff}
+.rating-item{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 0;border-bottom:0.5px solid var(--sep);
+}
+.rating-item:last-child{border-bottom:none}
+.rating-pos{
+  width:28px;height:28px;border-radius:50%;
+  background:var(--bg);display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:700;color:var(--text2);flex-shrink:0;
+}
+.rating-avatar{
+  width:40px;height:40px;border-radius:50%;
+  background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:600;flex-shrink:0;
+}
+.rating-info{flex:1}
+.rating-name{font-size:15px;font-weight:600}
+.rating-detail{font-size:12px;color:var(--text2);margin-top:1px}
+.rating-pct{
+  font-size:16px;font-weight:700;text-align:right;
+}
+.rating-sum{font-size:11px;color:var(--text2);text-align:right}
+
+/* PLAN PAGE */
+.plan-month{
+  display:flex;align-items:center;justify-content:center;gap:16px;
+  padding:8px 16px 20px;
+}
+.plan-month-label{font-size:17px;font-weight:600;min-width:140px;text-align:center}
+.plan-arrow{
+  background:none;border:none;cursor:pointer;padding:8px;
+  color:var(--accent);display:flex;
+}
+.plan-section{margin-bottom:8px}
+.plan-row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 0;border-bottom:0.5px solid var(--sep);
+}
+.plan-row:last-child{border-bottom:none}
+.plan-row-name{flex:1;font-size:15px;font-weight:500}
+.plan-row-input{
+  width:110px;padding:8px 12px;border:1px solid var(--sep);
+  border-radius:8px;font-size:14px;text-align:right;
+  font-family:inherit;background:var(--bg);
+}
+.plan-row-input:focus{outline:none;border-color:var(--accent)}
+.plan-actions{display:flex;gap:8px;margin-top:4px}
+
+/* SETTINGS */
+.setting-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 0;border-bottom:0.5px solid var(--sep);
+}
+.setting-item:last-child{border-bottom:none}
+.setting-label{font-size:16px;font-weight:500}
+.setting-desc{font-size:12px;color:var(--text2);margin-top:2px}
+.toggle{
+  width:51px;height:31px;border-radius:16px;
+  background:#E9E9EB;border:none;cursor:pointer;
+  position:relative;transition:background .3s;flex-shrink:0;
+}
+.toggle.on{background:var(--green)}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:27px;height:27px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.2);
+  transition:transform .3s;
+}
+.toggle.on::after{transform:translateX(20px)}
+
+/* MODAL */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.4);
+  z-index:300;display:none;align-items:center;justify-content:center;
+  padding:20px;
+}
+.modal-overlay.open{display:flex}
+.modal{
+  background:var(--card);border-radius:var(--radius);
+  padding:28px 24px;max-width:320px;width:100%;text-align:center;
+}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:8px}
+.modal-msg{font-size:14px;color:var(--text2);margin-bottom:24px;line-height:1.4}
+.modal-btns{display:flex;gap:12px}
+.modal-btns .btn{flex:1}
+
+/* TOAST */
+.toast{
+  position:fixed;top:calc(20px + var(--safe-top));left:50%;
+  transform:translateX(-50%) translateY(-100px);
+  background:var(--text);color:#fff;
+  padding:12px 24px;border-radius:12px;
+  font-size:14px;font-weight:500;z-index:400;
+  transition:transform .3s ease;
+  box-shadow:0 8px 24px rgba(0,0,0,0.2);
+  max-width:calc(100% - 40px);text-align:center;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.error{background:var(--red)}
+.toast.success{background:var(--green)}
+
+/* EMPTY STATE */
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-icon{font-size:48px;margin-bottom:12px;opacity:.5}
+.empty-text{font-size:15px;font-weight:500}
+
+/* LOADING */
+.loading{text-align:center;padding:40px}
+.spinner{
+  width:32px;height:32px;border:3px solid var(--sep);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin .8s linear infinite;margin:0 auto 12px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* MANAGER PAGE ADD */
+.manager-add-row{
+  display:flex;gap:8px;margin-bottom:16px;
+}
+.manager-add-row .form-input{flex:1}
+
+/* UTILS */
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-16{margin-bottom:16px}
+.px-16{padding-left:16px;padding-right:16px}
+.text-center{text-align:center}
+.color-green{color:var(--green)}.color-orange{color:var(--orange)}
+.color-red{color:var(--red)}.color-accent{color:var(--accent)}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR OVERLAY -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()">
+  <aside class="sidebar" onclick="event.stopPropagation()">
+    <div class="sidebar-header">
+      <div>
+        <div class="sidebar-logo">KIA</div>
+        <div class="sidebar-subtitle">Motors Dashboard</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="sidebar-item active" data-page="dashboard" onclick="goTo('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Дашборд
+      </button>
+      <button class="sidebar-item" data-page="managers" onclick="goTo('managers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Менеджеры
+      </button>
+      <button class="sidebar-item" data-page="plan" onclick="goTo('plan')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        План
+      </button>
+      <button class="sidebar-item" data-page="settings" onclick="goTo('settings')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Настройки
+      </button>
+    </nav>
+  </aside>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <button class="hamburger" onclick="openSidebar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span class="header-title" id="headerTitle">Дашборд</span>
+  </div>
+  <div class="kia-logo">KIA</div>
+</header>
+
+<!-- PAGES -->
+<div class="pages">
+
+  <!-- DASHBOARD -->
+  <section class="page active" id="pageDashboard">
+    <div class="large-title" id="dashTitle">Дашборд</div>
+    <div class="large-subtitle" id="dashSubtitle"></div>
+
+    <div class="card hero" id="heroCard">
+      <div class="card-title">Общий план</div>
+      <div class="progress-ring-wrap">
+        <svg width="160" height="160" viewBox="0 0 160 160">
+          <circle cx="80" cy="80" r="68" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="10"/>
+          <circle id="progressRing" cx="80" cy="80" r="68" fill="none" stroke="#fff" stroke-width="10"
+            stroke-linecap="round" stroke-dasharray="427.26" stroke-dashoffset="427.26"
+            transform="rotate(-90 80 80)"/>
+        </svg>
+        <div class="progress-center">
+          <div class="progress-pct" id="progressPct">0%</div>
+          <div class="progress-label">выполнение</div>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div><div class="hero-stat-val" id="heroFact">0</div><div class="hero-stat-lbl">Факт</div></div>
+        <div><div class="hero-stat-val" id="heroPlan">0</div><div class="hero-stat-lbl">План</div></div>
+      </div>
+    </div>
+
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card">
+        <div class="stat-card-val" id="statIncome">0%</div>
+        <div class="stat-card-lbl">Поступления</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-val" id="statForecast">0</div>
+        <div class="stat-card-lbl">Прогноз</div>
+      </div>
+    </div>
+
+    <div class="card" id="segmentsCard">
+      <div class="card-title">Сегменты</div>
+      <div id="segmentsContent"></div>
+    </div>
+
+    <div class="card" id="summaryCard">
+      <div class="card-title">Сводка по менеджерам</div>
+      <div id="summaryContent"></div>
+    </div>
+  </section>
+
+  <!-- SALES -->
+  <section class="page" id="pageSales">
+    <div class="large-title">Продажи</div>
+    <div class="large-subtitle" id="salesSubtitle"></div>
+
+    <div class="card">
+      <div class="card-title">Новая продажа</div>
+      <div class="form-group">
+        <label class="form-label">Менеджер</label>
+        <select class="form-select" id="saleManager"><option value="">Выберите менеджера</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Сегмент</label>
+        <select class="form-select" id="saleSegment">
+          <option value="CKD">CKD</option>
+          <option value="DKD">DKD</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Сумма</label>
+          <input class="form-input" type="number" id="saleSum" placeholder="0" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Кол-во</label>
+          <input class="form-input" type="number" id="saleQty" placeholder="1" min="1" step="1" value="1">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addSale()">Добавить продажу</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">История продаж</div>
+      <div id="salesList"></div>
+    </div>
+  </section>
+
+  <!-- MANAGERS -->
+  <section class="page" id="pageManagers">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 20px 4px">
+      <div class="large-title" style="padding:0">Менеджеры</div>
+      <button class="btn btn-sm btn-secondary" onclick="toggleManagerPanel()" id="mgrPanelToggle" style="font-size:13px;padding:6px 14px">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Управление
+      </button>
+    </div>
+    <div class="large-subtitle">Рейтинг за текущий месяц</div>
+
+    <!-- Manager management panel (hidden by default) -->
+    <div id="mgrPanel" style="display:none">
+      <div class="card">
+        <div class="card-title">Добавить менеджера</div>
+        <div class="manager-add-row">
+          <input class="form-input" id="newManagerName" placeholder="Имя Фамилия">
+          <button class="btn btn-primary btn-sm" onclick="addManager()">+</button>
+        </div>
+        <div id="mgrManageList"></div>
+      </div>
+    </div>
+
+    <div id="podiumWrap"></div>
+
+    <div class="rating-tabs" id="ratingTabs">
+      <button class="rating-tab active" data-seg="all" onclick="filterRating('all')">Все</button>
+      <button class="rating-tab" data-seg="CKD" onclick="filterRating('CKD')">CKD</button>
+      <button class="rating-tab" data-seg="DKD" onclick="filterRating('DKD')">DKD</button>
+    </div>
+
+    <div class="card">
+      <div id="ratingList"></div>
+    </div>
+  </section>
+
+  <!-- PLAN -->
+  <section class="page" id="pagePlan">
+    <div class="large-title">План</div>
+
+    <div class="plan-month">
+      <button class="plan-arrow" onclick="changePlanMonth(-1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="plan-month-label" id="planMonthLabel"></div>
+      <button class="plan-arrow" onclick="changePlanMonth(1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <div class="card plan-section">
+      <div class="card-title">Общий план (итого)</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">CKD — Сумма</label>
+          <input class="form-input" type="number" id="planCkdSum" placeholder="0" min="0" disabled style="opacity:.7">
+        </div>
+        <div class="form-group">
+          <label class="form-label">CKD — Кол-во</label>
+          <input class="form-input" type="number" id="planCkdQty" placeholder="0" min="0" disabled style="opacity:.7">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">DKD — Сумма</label>
+          <input class="form-input" type="number" id="planDkdSum" placeholder="0" min="0" disabled style="opacity:.7">
+        </div>
+        <div class="form-group">
+          <label class="form-label">DKD — Кол-во</label>
+          <input class="form-input" type="number" id="planDkdQty" placeholder="0" min="0" disabled style="opacity:.7">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">План по менеджерам</div>
+      <div id="planManagersList"></div>
+    </div>
+
+    <div class="px-16 mt-16">
+      <button class="btn btn-primary" onclick="savePlans()">Сохранить планы</button>
+    </div>
+    <div class="px-16 mt-8">
+      <button class="btn btn-secondary" onclick="confirmNewMonth()">Новый месяц</button>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="page" id="pageSettings">
+    <div class="large-title">Настройки</div>
+    <div class="large-subtitle">Управление приложением</div>
+
+    <div class="card">
+      <div class="card-title">Уведомления</div>
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Push-уведомления</div>
+          <div class="setting-desc">Оповещения о новых продажах</div>
+        </div>
+        <button class="toggle" id="toggleNotif" onclick="toggleNotifications()"></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Действия</div>
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Новый месяц</div>
+          <div class="setting-desc">Сброс планов на новый месяц</div>
+        </div>
+        <button class="btn btn-sm btn-secondary" onclick="confirmNewMonth()">Начать</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="setting-item">
+        <div>
+          <div class="setting-label">Версия</div>
+          <div class="setting-desc">KIA Dashboard v1.0</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- TABBAR -->
+<nav class="tabbar">
+  <button class="tab active" data-page="dashboard" onclick="goTo('dashboard')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span>Дашборд</span>
+  </button>
+  <button class="tab" data-page="sales" onclick="goTo('sales')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+    <span>Продажи</span>
+  </button>
+  <button class="tab" data-page="managers" onclick="goTo('managers')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    <span>Менеджеры</span>
+  </button>
+</nav>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle"></div>
+    <div class="modal-msg" id="modalMsg"></div>
+    <div class="modal-btns">
+      <button class="btn btn-sm btn-secondary" onclick="closeModal(false)">Отмена</button>
+      <button class="btn btn-sm btn-primary" id="modalConfirmBtn" onclick="closeModal(true)">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===================== CONFIG =====================
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+// ===================== INIT =====================
+const tg = window.Telegram && window.Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+
+let sb = null;
+let useLocal = true; // fallback to localStorage
+
+try {
+  if (SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_KEY !== 'YOUR_SUPABASE_ANON_KEY') {
+    sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    useLocal = false;
+  }
+} catch(e) { console.warn('Supabase not configured, using localStorage'); }
+
+// ===================== LOCAL STORAGE DB =====================
+const LS = {
+  _key(table) { return 'kia_' + table; },
+  _read(table) {
+    try { return JSON.parse(localStorage.getItem(this._key(table))) || []; }
+    catch { return []; }
+  },
+  _write(table, data) { localStorage.setItem(this._key(table), JSON.stringify(data)); },
+
+  async select(table, filters = {}) {
+    let data = this._read(table);
+    const special = ['_gte', '_lt', '_order'];
+    Object.entries(filters).forEach(([k, v]) => {
+      if (!special.includes(k)) data = data.filter(row => row[k] == v);
+    });
+    if (filters._gte) data = data.filter(r => r[filters._gte[0]] >= filters._gte[1]);
+    if (filters._lt) data = data.filter(r => r[filters._lt[0]] < filters._lt[1]);
+    if (filters._order) {
+      const [field, dir] = filters._order;
+      data.sort((a, b) => dir === 'asc' ? (a[field] > b[field] ? 1 : -1) : (a[field] < b[field] ? 1 : -1));
+    }
+    return { data, error: null };
+  },
+
+  async insert(table, rows) {
+    const data = this._read(table);
+    const arr = Array.isArray(rows) ? rows : [rows];
+    arr.forEach(row => {
+      if (!row.id) row.id = crypto.randomUUID();
+      if (!row.created_at && table !== 'plans') row.created_at = new Date().toISOString();
+      data.push(row);
+    });
+    this._write(table, data);
+    return { data: arr, error: null };
+  },
+
+  async delete(table, filters = {}) {
+    let data = this._read(table);
+    const before = data.length;
+    Object.entries(filters).forEach(([k, v]) => { data = data.filter(row => row[k] != v); });
+    this._write(table, data);
+    return { error: null };
+  },
+
+  async deleteMulti(table, filters = {}) {
+    let data = this._read(table);
+    data = data.filter(row => {
+      return !Object.entries(filters).every(([k, v]) => row[k] == v);
+    });
+    this._write(table, data);
+    return { error: null };
+  },
+
+  init() {
+    const managers = this._read('managers');
+    if (!managers.length) {
+      const defaults = [
+        'Дилноза Юсупова', 'Алишер Каримов', 'Бобур Назаров',
+        'Зарина Рахимова', 'Шахзод Турсунов'
+      ];
+      const mgrs = defaults.map(name => ({
+        id: crypto.randomUUID(), name, created_at: new Date().toISOString()
+      }));
+      this._write('managers', mgrs);
+    }
+  }
+};
+
+if (useLocal) LS.init();
+
+// ===================== STATE =====================
+let state = {
+  page: 'dashboard',
+  managers: [],
+  sales: [],
+  plans: [],
+  planMonth: new Date().getMonth() + 1,
+  planYear: new Date().getFullYear(),
+  ratingFilter: 'all',
+  notifications: localStorage.getItem('kia_notif') === 'true',
+};
+
+// ===================== DOM REFS =====================
+const $ = id => document.getElementById(id);
+
+// ===================== NAVIGATION =====================
+const pageTitles = {
+  dashboard: 'Дашборд', sales: 'Продажи', managers: 'Менеджеры',
+  plan: 'План', settings: 'Настройки'
+};
+const tabPages = ['dashboard', 'sales', 'managers'];
+
+function goTo(page) {
+  state.page = page;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const el = document.getElementById('page' + page.charAt(0).toUpperCase() + page.slice(1));
+  if (el) el.classList.add('active');
+
+  $('headerTitle').textContent = pageTitles[page] || '';
+
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.page === page);
+  });
+  document.querySelectorAll('.sidebar-item').forEach(s => {
+    s.classList.toggle('active', s.dataset.page === page);
+  });
+
+  closeSidebar();
+  loadPage(page);
+}
+
+function loadPage(page) {
+  switch(page) {
+    case 'dashboard': loadDashboard(); break;
+    case 'sales': loadSales(); break;
+    case 'managers': loadManagers(); break;
+    case 'plan': loadPlan(); break;
+    case 'settings': loadSettings(); break;
+  }
+}
+
+// ===================== SIDEBAR =====================
+function openSidebar() { $('sidebarOverlay').classList.add('open'); }
+function closeSidebar() { $('sidebarOverlay').classList.remove('open'); }
+
+// ===================== HELPERS =====================
+const now = new Date();
+const monthNames = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+
+function fmtNum(n) {
+  if (n == null || isNaN(n)) return '0';
+  return Number(n).toLocaleString('ru-RU');
+}
+
+function fmtDate(d) {
+  return new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+
+function daysInMonth(m, y) { return new Date(y, m, 0).getDate(); }
+
+function currentDay() { return new Date().getDate(); }
+
+function currentMonth() { return now.getMonth() + 1; }
+function currentYear() { return now.getFullYear(); }
+
+function pctColor(pct) {
+  if (pct >= 100) return 'var(--accent)';
+  if (pct >= 75) return 'var(--green)';
+  if (pct >= 50) return 'var(--orange)';
+  return 'var(--red)';
+}
+
+function pctClass(pct) {
+  if (pct >= 100) return 'color-accent';
+  if (pct >= 75) return 'color-green';
+  if (pct >= 50) return 'color-orange';
+  return 'color-red';
+}
+
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+}
+
+// ===================== DB QUERIES =====================
+async function fetchManagers() {
+  if (useLocal) {
+    const { data } = await LS.select('managers', { _order: ['name', 'asc'] });
+    return data || [];
+  }
+  const { data, error } = await sb.from('managers').select('*').order('name');
+  if (error) { showToast('Ошибка загрузки менеджеров', 'error'); return []; }
+  return data || [];
+}
+
+async function fetchSales(month, year) {
+  if (useLocal) {
+    let { data } = await LS.select('sales');
+    const startDate = new Date(year, month - 1, 1).toISOString();
+    const endDate = new Date(year, month, 1).toISOString();
+    data = (data || []).filter(s => s.created_at >= startDate && s.created_at < endDate);
+    data.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return data;
+  }
+  const startDate = new Date(year, month - 1, 1).toISOString();
+  const endDate = new Date(year, month, 1).toISOString();
+  const { data, error } = await sb.from('sales').select('*')
+    .gte('created_at', startDate).lt('created_at', endDate)
+    .order('created_at', { ascending: false });
+  if (error) { showToast('Ошибка загрузки продаж', 'error'); return []; }
+  return data || [];
+}
+
+async function fetchPlans(month, year) {
+  if (useLocal) {
+    const { data } = await LS.select('plans', { month, year });
+    return data || [];
+  }
+  const { data, error } = await sb.from('plans').select('*')
+    .eq('month', month).eq('year', year);
+  if (error) { showToast('Ошибка загрузки планов', 'error'); return []; }
+  return data || [];
+}
+
+// ===================== DASHBOARD =====================
+async function loadDashboard() {
+  const m = currentMonth(), y = currentYear();
+  $('dashSubtitle').textContent = `${monthNames[m-1]} ${y} \u2022 ${currentDay()} день`;
+
+  try {
+    const [managers, sales, plans] = await Promise.all([
+      fetchManagers(), fetchSales(m, y), fetchPlans(m, y)
+    ]);
+    state.managers = managers;
+    state.sales = sales;
+    state.plans = plans;
+
+    // Total plan sums
+    const totalPlanSum = plans.reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+    const totalPlanQty = plans.reduce((a, p) => a + Number(p.qty_plan || 0), 0);
+
+    // Total fact
+    const totalFactSum = sales.reduce((a, s) => a + Number(s.sum || 0), 0);
+    const totalFactQty = sales.reduce((a, s) => a + Number(s.qty || 0), 0);
+
+    // Progress %
+    const pct = totalPlanSum > 0 ? Math.round(totalFactSum / totalPlanSum * 100) : 0;
+    const circ = 427.26;
+    const offset = circ - (circ * Math.min(pct, 100) / 100);
+    const ring = $('progressRing');
+    ring.style.strokeDashoffset = offset;
+    ring.style.stroke = pct >= 100 ? '#34C759' : '#fff';
+
+    $('progressPct').textContent = pct + '%';
+    $('heroFact').textContent = fmtNum(totalFactSum);
+    $('heroPlan').textContent = fmtNum(totalPlanSum);
+
+    // Stats
+    const incomePct = totalPlanSum > 0 ? Math.round(totalFactSum / totalPlanSum * 100) : 0;
+    $('statIncome').textContent = incomePct + '%';
+    $('statIncome').className = 'stat-card-val ' + pctClass(incomePct);
+
+    const dayNum = currentDay();
+    const totalDays = daysInMonth(m, y);
+    const forecast = dayNum > 0 ? Math.round(totalFactSum / dayNum * totalDays) : 0;
+    $('statForecast').textContent = fmtNum(forecast);
+
+    // Segments
+    const ckdPlan = plans.filter(p => p.segment === 'CKD').reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+    const dkdPlan = plans.filter(p => p.segment === 'DKD').reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+    const ckdFact = sales.filter(s => s.segment === 'CKD').reduce((a, s) => a + Number(s.sum || 0), 0);
+    const dkdFact = sales.filter(s => s.segment === 'DKD').reduce((a, s) => a + Number(s.sum || 0), 0);
+    const ckdPct = ckdPlan > 0 ? Math.round(ckdFact / ckdPlan * 100) : 0;
+    const dkdPct = dkdPlan > 0 ? Math.round(dkdFact / dkdPlan * 100) : 0;
+
+    $('segmentsContent').innerHTML = `
+      <div class="segment">
+        <div class="segment-header">
+          <span class="segment-name">CKD</span>
+          <span class="segment-pct ${pctClass(ckdPct)}">${ckdPct}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill" style="width:${Math.min(ckdPct,100)}%;background:${pctColor(ckdPct)}"></div></div>
+        <div class="segment-detail"><span>${fmtNum(ckdFact)} из ${fmtNum(ckdPlan)}</span></div>
+      </div>
+      <div class="segment">
+        <div class="segment-header">
+          <span class="segment-name">DKD</span>
+          <span class="segment-pct ${pctClass(dkdPct)}">${dkdPct}%</span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill" style="width:${Math.min(dkdPct,100)}%;background:${pctColor(dkdPct)}"></div></div>
+        <div class="segment-detail"><span>${fmtNum(dkdFact)} из ${fmtNum(dkdPlan)}</span></div>
+      </div>
+    `;
+
+    // Summary per manager
+    let summaryHtml = '<table class="summary-table"><thead><tr><th>Менеджер</th><th>Факт</th><th>План</th><th style="text-align:right">%</th></tr></thead><tbody>';
+    managers.forEach(mgr => {
+      const mgrSales = sales.filter(s => s.manager_id === mgr.id);
+      const mgrFact = mgrSales.reduce((a, s) => a + Number(s.sum || 0), 0);
+      const mgrPlans = plans.filter(p => p.manager_id === mgr.id);
+      const mgrPlan = mgrPlans.reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+      const mgrPct = mgrPlan > 0 ? Math.round(mgrFact / mgrPlan * 100) : -1;
+      summaryHtml += `<tr>
+        <td>${mgr.name.split(' ')[0]}</td>
+        <td>${fmtNum(mgrFact)}</td>
+        <td>${fmtNum(mgrPlan)}</td>
+        <td style="text-align:right" class="${mgrPct >= 0 ? pctClass(mgrPct) : ''}">${mgrPct >= 0 ? mgrPct + '%' : '\u2014'}</td>
+      </tr>`;
+    });
+    summaryHtml += '</tbody></table>';
+    $('summaryContent').innerHTML = summaryHtml;
+
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ===================== SALES =====================
+async function loadSales() {
+  const m = currentMonth(), y = currentYear();
+  $('salesSubtitle').textContent = monthNames[m-1] + ' ' + y;
+
+  if (!state.managers.length) state.managers = await fetchManagers();
+
+  // Populate manager select
+  const sel = $('saleManager');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">Выберите менеджера</option>';
+  state.managers.forEach(mgr => {
+    sel.innerHTML += `<option value="${mgr.id}">${mgr.name}</option>`;
+  });
+  if (currentVal) sel.value = currentVal;
+
+  // Load sales
+  const sales = await fetchSales(m, y);
+  state.sales = sales;
+
+  if (!sales.length) {
+    $('salesList').innerHTML = '<div class="empty"><div class="empty-icon">📊</div><div class="empty-text">Нет продаж за этот месяц</div></div>';
+    return;
+  }
+
+  let html = '';
+  sales.forEach(s => {
+    const mgr = state.managers.find(m => m.id === s.manager_id);
+    html += `<div class="sale-item">
+      <div class="sale-info">
+        <div class="sale-manager">${mgr ? mgr.name : 'Неизвестный'}</div>
+        <div class="sale-meta">${s.segment} \u2022 ${fmtDate(s.created_at)} \u2022 ${s.qty} шт.</div>
+      </div>
+      <div>
+        <div class="sale-amount">${fmtNum(s.sum)}</div>
+      </div>
+      <button class="sale-delete" onclick="deleteSale('${s.id}')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>`;
+  });
+  $('salesList').innerHTML = html;
+}
+
+async function addSale() {
+  const managerId = $('saleManager').value;
+  const segment = $('saleSegment').value;
+  const sum = parseFloat($('saleSum').value);
+  const qty = parseInt($('saleQty').value) || 1;
+
+  if (!managerId) { showToast('Выберите менеджера', 'error'); return; }
+  if (!sum || sum <= 0) { showToast('Введите сумму', 'error'); return; }
+
+  const row = { manager_id: managerId, segment, sum, qty, created_at: new Date().toISOString() };
+
+  if (useLocal) {
+    await LS.insert('sales', row);
+  } else {
+    const { error } = await sb.from('sales').insert(row);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  showToast('Продажа добавлена', 'success');
+  $('saleSum').value = '';
+  $('saleQty').value = '1';
+  loadSales();
+}
+
+async function deleteSale(id) {
+  const ok = await showModal('Удалить продажу?', 'Это действие нельзя отменить');
+  if (!ok) return;
+
+  if (useLocal) {
+    await LS.delete('sales', { id });
+  } else {
+    const { error } = await sb.from('sales').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+
+  showToast('Продажа удалена', 'success');
+  loadSales();
+}
+
+// ===================== MANAGERS =====================
+async function loadManagers() {
+  const m = currentMonth(), y = currentYear();
+
+  const [managers, sales] = await Promise.all([
+    fetchManagers(), fetchSales(m, y)
+  ]);
+  state.managers = managers;
+  state.sales = sales;
+
+  if (!state.plans.length) state.plans = await fetchPlans(m, y);
+
+  // Calculate stats per manager
+  const stats = managers.map(mgr => {
+    const mgrSales = sales.filter(s => s.manager_id === mgr.id);
+    const totalSum = mgrSales.reduce((a, s) => a + Number(s.sum || 0), 0);
+    const totalQty = mgrSales.reduce((a, s) => a + Number(s.qty || 0), 0);
+    const mgrPlans = state.plans.filter(p => p.manager_id === mgr.id);
+    const planSum = mgrPlans.reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+    const pct = planSum > 0 ? Math.round(totalSum / planSum * 100) : -1;
+    return { ...mgr, totalSum, totalQty, planSum, pct };
+  });
+
+  state.managerStats = stats;
+  renderPodium(stats);
+  renderRating(stats, state.ratingFilter);
+}
+
+function renderPodium(stats) {
+  const sorted = [...stats].sort((a, b) => b.totalSum - a.totalSum);
+  const top3 = sorted.slice(0, 3);
+
+  if (top3.length < 1) {
+    $('podiumWrap').innerHTML = '<div class="empty"><div class="empty-text">Нет данных</div></div>';
+    return;
+  }
+
+  const positions = ['first', 'second', 'third'];
+  const medals = ['👑', '', ''];
+  let html = '<div class="podium">';
+
+  for (let i = 0; i < Math.min(3, top3.length); i++) {
+    const m = top3[i];
+    html += `<div class="podium-item ${positions[i]}">
+      ${i === 0 ? '<div class="podium-crown">👑</div>' : ''}
+      <div class="podium-avatar">${initials(m.name)}</div>
+      <div class="podium-name">${m.name.split(' ')[0]}</div>
+      <div class="podium-val">${fmtNum(m.totalSum)}</div>
+      <div class="podium-bar">${i + 1}</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  $('podiumWrap').innerHTML = html;
+}
+
+function filterRating(seg) {
+  state.ratingFilter = seg;
+  document.querySelectorAll('.rating-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.seg === seg);
+  });
+  renderRating(state.managerStats || [], seg);
+}
+
+function renderRating(stats, filter) {
+  let filtered;
+  if (filter === 'all') {
+    filtered = stats;
+  } else {
+    filtered = stats.map(mgr => {
+      const segSales = state.sales.filter(s => s.manager_id === mgr.id && s.segment === filter);
+      const segSum = segSales.reduce((a, s) => a + Number(s.sum || 0), 0);
+      const segQty = segSales.reduce((a, s) => a + Number(s.qty || 0), 0);
+      const segPlans = state.plans.filter(p => p.manager_id === mgr.id && p.segment === filter);
+      const segPlan = segPlans.reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+      const pct = segPlan > 0 ? Math.round(segSum / segPlan * 100) : -1;
+      return { ...mgr, totalSum: segSum, totalQty: segQty, planSum: segPlan, pct };
+    });
+  }
+
+  const sorted = [...filtered].sort((a, b) => b.totalSum - a.totalSum);
+
+  if (!sorted.length) {
+    $('ratingList').innerHTML = '<div class="empty"><div class="empty-text">Нет данных</div></div>';
+    return;
+  }
+
+  let html = '';
+  sorted.forEach((m, i) => {
+    html += `<div class="rating-item">
+      <div class="rating-pos">${i + 1}</div>
+      <div class="rating-avatar">${initials(m.name)}</div>
+      <div class="rating-info">
+        <div class="rating-name">${m.name}</div>
+        <div class="rating-detail">${fmtNum(m.totalSum)} \u2022 ${m.totalQty} шт.</div>
+      </div>
+      <div>
+        <div class="rating-pct ${m.pct >= 0 ? pctClass(m.pct) : ''}">${m.pct >= 0 ? m.pct + '%' : '\u2014'}</div>
+      </div>
+    </div>`;
+  });
+  $('ratingList').innerHTML = html;
+}
+
+// ===================== PLAN =====================
+async function loadPlan() {
+  const m = state.planMonth, y = state.planYear;
+  $('planMonthLabel').textContent = monthNames[m - 1] + ' ' + y;
+
+  if (!state.managers.length) state.managers = await fetchManagers();
+  const plans = await fetchPlans(m, y);
+  state.plans = plans;
+
+  // Overall CKD/DKD plan
+  const ckdPlan = plans.filter(p => p.segment === 'CKD' && !p.manager_id);
+  const dkdPlan = plans.filter(p => p.segment === 'DKD' && !p.manager_id);
+  // Sum from all manager plans if no overall
+  const ckdSumPlan = plans.filter(p => p.segment === 'CKD').reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+  const dkdSumPlan = plans.filter(p => p.segment === 'DKD').reduce((a, p) => a + Number(p.sum_plan || 0), 0);
+  const ckdQtyPlan = plans.filter(p => p.segment === 'CKD').reduce((a, p) => a + Number(p.qty_plan || 0), 0);
+  const dkdQtyPlan = plans.filter(p => p.segment === 'DKD').reduce((a, p) => a + Number(p.qty_plan || 0), 0);
+
+  $('planCkdSum').value = ckdSumPlan || '';
+  $('planCkdQty').value = ckdQtyPlan || '';
+  $('planDkdSum').value = dkdSumPlan || '';
+  $('planDkdQty').value = dkdQtyPlan || '';
+
+  // Per manager
+  let html = '';
+  state.managers.forEach(mgr => {
+    const ckd = plans.find(p => p.manager_id === mgr.id && p.segment === 'CKD');
+    const dkd = plans.find(p => p.manager_id === mgr.id && p.segment === 'DKD');
+    html += `<div class="plan-row" style="flex-wrap:wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px">
+        <div class="plan-row-name" style="font-weight:600">${mgr.name}</div>
+        <button class="btn btn-sm btn-danger" style="padding:4px 10px;font-size:12px" onclick="deletePlan('${mgr.id}')">Удалить</button>
+      </div>
+      <div style="display:flex;gap:8px;width:100%;align-items:center">
+        <span style="font-size:12px;color:var(--text2);width:32px">CKD</span>
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="CKD" data-field="sum"
+          placeholder="Сумма" type="number" value="${ckd ? ckd.sum_plan : ''}">
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="CKD" data-field="qty"
+          placeholder="Кол" type="number" value="${ckd ? ckd.qty_plan : ''}" style="width:70px">
+      </div>
+      <div style="display:flex;gap:8px;width:100%;align-items:center;margin-top:4px">
+        <span style="font-size:12px;color:var(--text2);width:32px">DKD</span>
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="DKD" data-field="sum"
+          placeholder="Сумма" type="number" value="${dkd ? dkd.sum_plan : ''}">
+        <input class="plan-row-input" data-mgr="${mgr.id}" data-seg="DKD" data-field="qty"
+          placeholder="Кол" type="number" value="${dkd ? dkd.qty_plan : ''}" style="width:70px">
+      </div>
+    </div>`;
+  });
+  $('planManagersList').innerHTML = html;
+}
+
+function changePlanMonth(dir) {
+  state.planMonth += dir;
+  if (state.planMonth > 12) { state.planMonth = 1; state.planYear++; }
+  if (state.planMonth < 1) { state.planMonth = 12; state.planYear--; }
+  loadPlan();
+}
+
+async function deletePlan(managerId) {
+  const ok = await showModal('Удалить план?', 'Удалить план этого менеджера на текущий месяц?');
+  if (!ok) return;
+
+  if (useLocal) {
+    let data = LS._read('plans');
+    data = data.filter(p => !(p.manager_id == managerId && p.month == state.planMonth && p.year == state.planYear));
+    LS._write('plans', data);
+  } else {
+    const { error } = await sb.from('plans').delete()
+      .eq('manager_id', managerId).eq('month', state.planMonth).eq('year', state.planYear);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+
+  showToast('План удалён', 'success');
+  loadPlan();
+}
+
+async function savePlans() {
+  const m = state.planMonth, y = state.planYear;
+  const inputs = document.querySelectorAll('.plan-row-input[data-mgr]');
+  const planMap = {};
+
+  inputs.forEach(inp => {
+    const mgrId = inp.dataset.mgr;
+    const seg = inp.dataset.seg;
+    const field = inp.dataset.field;
+    const key = mgrId + '_' + seg;
+    if (!planMap[key]) planMap[key] = { manager_id: mgrId, segment: seg, month: m, year: y, sum_plan: 0, qty_plan: 0 };
+    if (field === 'sum') planMap[key].sum_plan = parseFloat(inp.value) || 0;
+    if (field === 'qty') planMap[key].qty_plan = parseInt(inp.value) || 0;
+  });
+
+  const upserts = Object.values(planMap).filter(p => p.sum_plan > 0 || p.qty_plan > 0);
+
+  if (useLocal) {
+    // Delete existing plans for this month
+    let data = LS._read('plans');
+    data = data.filter(p => !(p.month == m && p.year == y));
+    LS._write('plans', data);
+    if (upserts.length) await LS.insert('plans', upserts);
+  } else {
+    await sb.from('plans').delete().eq('month', m).eq('year', y);
+    if (upserts.length) {
+      const { error } = await sb.from('plans').insert(upserts);
+      if (error) { showToast('Ошибка сохранения: ' + error.message, 'error'); return; }
+    }
+  }
+
+  showToast('Планы сохранены', 'success');
+  loadPlan();
+}
+
+async function confirmNewMonth() {
+  const ok = await showModal('Новый месяц', 'Начать новый месяц? Текущие планы будут скопированы на следующий месяц.');
+  if (!ok) return;
+
+  const m = currentMonth(), y = currentYear();
+  let nextM = m + 1, nextY = y;
+  if (nextM > 12) { nextM = 1; nextY++; }
+
+  // Check if next month plans already exist
+  const existing = await fetchPlans(nextM, nextY);
+  if (existing.length) {
+    showToast('Планы на ' + monthNames[nextM - 1] + ' уже существуют', 'error');
+    return;
+  }
+
+  const plans = await fetchPlans(m, y);
+  if (plans.length) {
+    const newPlans = plans.map(p => ({
+      manager_id: p.manager_id, segment: p.segment,
+      month: nextM, year: nextY,
+      sum_plan: p.sum_plan, qty_plan: p.qty_plan
+    }));
+    if (useLocal) {
+      await LS.insert('plans', newPlans);
+    } else {
+      await sb.from('plans').insert(newPlans);
+    }
+  }
+
+  state.planMonth = nextM;
+  state.planYear = nextY;
+  showToast('Новый месяц создан', 'success');
+  loadPlan();
+}
+
+// ===================== SETTINGS =====================
+async function loadSettings() {
+  const toggle = $('toggleNotif');
+  toggle.classList.toggle('on', state.notifications);
+}
+
+function toggleNotifications() {
+  state.notifications = !state.notifications;
+  localStorage.setItem('kia_notif', state.notifications);
+  $('toggleNotif').classList.toggle('on', state.notifications);
+}
+
+// ===================== MANAGER CRUD (on Managers page) =====================
+function toggleManagerPanel() {
+  const panel = $('mgrPanel');
+  const btn = $('mgrPanelToggle');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  btn.innerHTML = isOpen
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Управление'
+    : 'Закрыть';
+  if (!isOpen) renderManagerList();
+}
+
+function renderManagerList() {
+  let html = '';
+  state.managers.forEach(mgr => {
+    html += `<div class="setting-item">
+      <div style="flex:1">
+        <div class="setting-label" id="mgrName_${mgr.id}">${mgr.name}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-sm btn-secondary" style="padding:4px 10px;font-size:12px" onclick="editManagerName('${mgr.id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="btn btn-sm btn-danger" style="padding:4px 10px;font-size:12px" onclick="deleteManager('${mgr.id}','${mgr.name}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
+      </div>
+    </div>`;
+  });
+  $('mgrManageList').innerHTML = html;
+}
+
+async function editManagerName(id) {
+  const mgr = state.managers.find(m => m.id === id);
+  if (!mgr) return;
+  const el = document.getElementById('mgrName_' + id);
+  const currentName = mgr.name;
+
+  el.innerHTML = `<div style="display:flex;gap:6px;align-items:center">
+    <input class="form-input" id="mgrEditInput_${id}" value="${currentName}" style="padding:6px 10px;font-size:14px">
+    <button class="btn btn-sm btn-green" style="padding:4px 10px;font-size:12px;white-space:nowrap" onclick="saveManagerName('${id}')">OK</button>
+  </div>`;
+  const inp = document.getElementById('mgrEditInput_' + id);
+  inp.focus();
+  inp.select();
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') saveManagerName(id); });
+}
+
+async function saveManagerName(id) {
+  const inp = document.getElementById('mgrEditInput_' + id);
+  const newName = inp.value.trim();
+  if (!newName) { showToast('Введите имя', 'error'); return; }
+
+  if (useLocal) {
+    let data = LS._read('managers');
+    data = data.map(m => m.id === id ? { ...m, name: newName } : m);
+    LS._write('managers', data);
+  } else {
+    const { error } = await sb.from('managers').update({ name: newName }).eq('id', id);
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  showToast('Имя изменено', 'success');
+  state.managers = await fetchManagers();
+  renderManagerList();
+}
+
+async function addManager() {
+  const name = $('newManagerName').value.trim();
+  if (!name) { showToast('Введите имя', 'error'); return; }
+
+  if (useLocal) {
+    await LS.insert('managers', { name });
+  } else {
+    const { error } = await sb.from('managers').insert({ name });
+    if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  }
+
+  $('newManagerName').value = '';
+  showToast('Менеджер добавлен', 'success');
+  state.managers = await fetchManagers();
+  renderManagerList();
+  loadManagers();
+}
+
+async function deleteManager(id, name) {
+  const ok = await showModal('Удалить менеджера?', `Вы уверены что хотите удалить ${name}?`);
+  if (!ok) return;
+
+  if (useLocal) {
+    await LS.delete('managers', { id });
+  } else {
+    const { error } = await sb.from('managers').delete().eq('id', id);
+    if (error) { showToast('Ошибка удаления', 'error'); return; }
+  }
+
+  showToast('Менеджер удалён', 'success');
+  state.managers = await fetchManagers();
+  renderManagerList();
+  loadManagers();
+}
+
+// ===================== MODAL =====================
+let modalResolve = null;
+
+function showModal(title, msg) {
+  return new Promise(resolve => {
+    modalResolve = resolve;
+    $('modalTitle').textContent = title;
+    $('modalMsg').textContent = msg;
+    $('modalOverlay').classList.add('open');
+  });
+}
+
+function closeModal(result) {
+  $('modalOverlay').classList.remove('open');
+  if (modalResolve) { modalResolve(result); modalResolve = null; }
+}
+
+// ===================== TOAST =====================
+let toastTimer;
+function showToast(msg, type = 'info') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===================== INIT =====================
+document.addEventListener('DOMContentLoaded', () => {
+  goTo('dashboard');
+});
+</script>
+</body>
+</html>
