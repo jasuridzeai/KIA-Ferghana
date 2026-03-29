@@ -54,6 +54,31 @@ html,body{
   font-size:20px;font-weight:800;letter-spacing:2px;color:var(--accent);
 }
 
+/* CUSTOM DATE PICKER */
+.dp-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
+.dp-overlay.open{opacity:1;pointer-events:all}
+.dp-sheet{background:var(--card);border-radius:20px;width:100%;max-width:360px;padding:20px;transform:scale(0.9);transition:transform .2s ease;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+.dp-overlay.open .dp-sheet{transform:scale(1)}
+.dp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.dp-title{font-size:17px;font-weight:700;color:var(--text)}
+.dp-nav{background:none;border:none;color:var(--accent);font-size:22px;cursor:pointer;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.dp-nav:active{background:rgba(27,58,107,0.1)}
+.dp-weekdays{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px}
+.dp-weekday{text-align:center;font-size:11px;font-weight:600;color:var(--text2);padding:4px 0}
+.dp-days{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(6,1fr);gap:2px;min-height:252px}
+.dp-day{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:14px;cursor:pointer;color:var(--text);border:none;background:none}
+.dp-day:hover{background:rgba(27,58,107,0.08)}
+.dp-day.today{color:var(--accent);font-weight:700}
+.dp-day.selected{background:var(--accent);color:#fff!important;font-weight:700}
+.dp-day.other{color:var(--text2);opacity:0.4}
+.dp-day.disabled{opacity:0.2;cursor:default;pointer-events:none}
+.dp-months{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.dp-month{padding:10px 4px;text-align:center;border-radius:10px;font-size:14px;cursor:pointer;color:var(--text);border:none;background:none}
+.dp-month:hover{background:rgba(27,58,107,0.08)}
+.dp-month.selected{background:var(--accent);color:#fff;font-weight:700}
+.dp-month.current{color:var(--accent);font-weight:600}
+.dp-close{width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:600;cursor:pointer;margin-top:16px}
+
 /* SIDEBAR */
 .sidebar-overlay{
   position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;
@@ -112,23 +137,10 @@ html,body{
 .r-pct{font-size:14px;font-weight:700;min-width:44px;text-align:right;flex-shrink:0}
 
 /* TABBAR */
-.tabbar{
-  position:fixed;bottom:0;left:0;right:0;z-index:100;
-  background:var(--card);
-  border-top:0.5px solid var(--sep);
-  display:flex;
-  padding-bottom:var(--safe-bottom);
-}
-.tab{
-  flex:1;display:flex;flex-direction:column;align-items:center;
-  gap:2px;padding:8px 0;cursor:pointer;
-  background:none;border:none;
-  color:var(--text3);font-size:10px;font-weight:500;
-  transition:color .2s;
-}
-.tab svg{width:24px;height:24px}
-.tab.active{color:var(--accent)}
-.tab.active svg{color:var(--accent)}
+.tabbar { display: flex !important; flex-direction: row !important; width: 100% !important; position: fixed !important; bottom: 0 !important; left: 0 !important; background: rgba(242,242,247,0.97) !important; border-top: 0.5px solid rgba(60,60,67,0.12) !important; padding-bottom: env(safe-area-inset-bottom) !important; z-index: 9999 !important; }
+.tab { flex: 1 !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 4px !important; padding: 8px 0 !important; border: none !important; background: transparent !important; cursor: pointer !important; color: #8E8E93 !important; font-size: 10px !important; font-weight: 500 !important; }
+.tab.active { color: #1B3A6B !important; }
+.tab svg { stroke: currentColor !important; width: 24px !important; height: 24px !important; }
 
 /* CARDS */
 .card{
@@ -209,6 +221,11 @@ html,body{
   background:var(--bg);color:var(--text);
   -webkit-appearance:none;appearance:none;
   transition:border-color .2s;
+}
+input[type="date"].form-input,input[type="month"].form-input{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%231b3a6b' stroke-width='2'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 14px center;
+  padding-right:44px;cursor:pointer;
 }
 .form-input:focus,.form-select:focus{
   outline:none;border-color:var(--accent);
@@ -398,8 +415,6 @@ html,body{
 .toast.success{background:var(--green)}
 
 /* ADMIN/GUEST MODE */
-.admin-only { display: none !important; }
-body.is-admin .admin-only { display: revert !important; }
 .guest-only { display: revert; }
 body.is-admin .guest-only { display: none !important; }
 
@@ -637,7 +652,10 @@ body.is-admin .guest-only { display: none !important; }
   <aside class="sidebar" onclick="event.stopPropagation()">
     <div class="sidebar-header">
       <div>
-        <div class="sidebar-logo">KIA</div>
+        <div class="sidebar-logo" style="display:flex;flex-direction:column;line-height:1.2">
+          <span style="font-size:20px;font-weight:900;font-style:italic;letter-spacing:-0.5px">DAVR MOTORS</span>
+          <span style="font-size:10px;font-weight:400;color:var(--text2);letter-spacing:0.5px">Since 1991</span>
+        </div>
         <div class="sidebar-subtitle">Motors Dashboard</div>
       </div>
     </div>
@@ -662,7 +680,11 @@ body.is-admin .guest-only { display: none !important; }
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         Конверсия
       </button>
-      <button class="sidebar-item admin-only" data-page="settings" onclick="goTo('settings')">
+      <button class="sidebar-item" data-page="history" onclick="goTo('history')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        История оплат
+      </button>
+      <button class="sidebar-item" data-page="settings" onclick="goTo('settings')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         Настройки
       </button>
@@ -690,7 +712,10 @@ body.is-admin .guest-only { display: none !important; }
     </button>
     <span class="header-title" id="headerTitle">Дашборд</span>
   </div>
-  <div class="kia-logo">KIA</div>
+  <div class="kia-logo" style="display:flex;flex-direction:column;align-items:flex-end;line-height:1">
+    <span style="font-size:18px;font-weight:900;font-style:italic;letter-spacing:-0.5px;color:var(--text)">DAVR MOTORS</span>
+    <span style="font-size:9px;font-weight:400;color:var(--text2);letter-spacing:0.5px">Since 1991</span>
+  </div>
 </header>
 
 <!-- PAGES -->
@@ -778,7 +803,7 @@ body.is-admin .guest-only { display: none !important; }
       <div class="card-title">Новая продажа</div>
       <div class="form-group">
         <label class="form-label">Дата продажи</label>
-        <input class="form-input" type="date" id="saleDate" onclick="toggleDatePicker(this)" onchange="filterSalesByDate()">
+        <input class="form-input" type="date" id="saleDate" readonly onclick="openDatePicker(this.id,'date');return false" onchange="filterSalesByDate()">
       </div>
       <div class="form-group">
         <label class="form-label">Менеджер</label>
@@ -834,7 +859,7 @@ body.is-admin .guest-only { display: none !important; }
     <div class="card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
         <div class="card-title" style="margin-bottom:0" id="salesHistoryTitle">История продаж</div>
-        <button id="salesAllBtn" onclick="toggleAllSales()" style="font-size:12px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">Все записи</button>
+        <button id="salesAllBtn" onclick="goTo('history')" style="font-size:12px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:0">Все записи</button>
       </div>
       <div id="salesList"></div>
     </div>
@@ -911,7 +936,6 @@ body.is-admin .guest-only { display: none !important; }
       <button class="btn btn-primary" onclick="savePlans()">Сохранить планы</button>
     </div>
     <div class="px-16 mt-8">
-      <button class="btn btn-secondary" onclick="confirmNewMonth()">Новый месяц</button>
     </div>
   </section>
 
@@ -1040,7 +1064,7 @@ body.is-admin .guest-only { display: none !important; }
       <div class="card-title">Ежедневный отчёт</div>
       <div class="form-group">
         <label class="form-label">Дата</label>
-        <input class="form-input" type="date" id="statDate" onchange="filterStatsByDate()" onclick="toggleDatePicker(this)">
+        <input class="form-input" type="date" id="statDate" readonly onclick="openDatePicker(this.id,'date');return false" onchange="filterStatsByDate()">
       </div>
       <div class="form-group">
         <label class="form-label">Менеджер</label>
@@ -1074,6 +1098,47 @@ body.is-admin .guest-only { display: none !important; }
     </div>
   </section>
 
+  <section class="page" id="pageHistory" style="padding:0 12px 16px">
+    <div class="large-title">История оплат</div>
+    <div class="card" style="margin-bottom:10px;margin-left:0;margin-right:0">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">С</div>
+          <input class="form-input" type="date" id="historyFrom" readonly onclick="openDatePicker(this.id,'date');return false" onchange="loadHistory()" style="padding:10px 40px 10px 12px;font-size:14px">
+        </div>
+        <div style="flex:1">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">По</div>
+          <input class="form-input" type="date" id="historyTo" readonly onclick="openDatePicker(this.id,'date');return false" onchange="loadHistory()" style="padding:10px 40px 10px 12px;font-size:14px">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <select class="form-select" id="historyManager" onchange="loadHistory()" style="flex:1">
+          <option value="">Все менеджеры</option>
+        </select>
+        <select class="form-select" id="historySegment" onchange="loadHistory()" style="flex:1">
+          <option value="">Все</option>
+          <option value="CKD">CKD</option>
+          <option value="DKD">DKD</option>
+        </select>
+      </div>
+    </div>
+    <div id="historyTotal" style="margin-bottom:8px"></div>
+    <div id="historyList"></div>
+  </section>
+
+</div>
+
+<!-- DATE PICKER -->
+<div class="dp-overlay" id="dpOverlay" onclick="dpOutsideClick(event)">
+  <div class="dp-sheet" id="dpSheet">
+    <div class="dp-header">
+      <button class="dp-nav" id="dpPrev" onclick="dpNav(-1)">&#8249;</button>
+      <span class="dp-title" id="dpTitle"></span>
+      <button class="dp-nav" id="dpNext" onclick="dpNav(1)">&#8250;</button>
+    </div>
+    <div id="dpBody"></div>
+    <button class="dp-close" onclick="dpClose()">Закрыть</button>
+  </div>
 </div>
 
 <!-- SUB-PAGE -->
@@ -1115,16 +1180,16 @@ body.is-admin .guest-only { display: none !important; }
 
 <!-- TABBAR -->
 <nav class="tabbar">
-  <button class="tab active" data-page="dashboard" onclick="goTo('dashboard')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  <button class="tab active" style="flex:1" data-page="dashboard" onclick="goTo('dashboard')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     <span>Дашборд</span>
   </button>
-  <button class="tab admin-only" data-page="sales" onclick="goTo('sales')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-    <span>Продажи</span>
+  <button class="tab" style="flex:1" data-page="sales" onclick="goTo('sales')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span>Добавить</span>
   </button>
-  <button class="tab" data-page="report" onclick="goTo('report')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  <button class="tab" style="flex:1" data-page="report" onclick="goTo('report')">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
     <span>Отчёт</span>
   </button>
 </nav>
@@ -1258,7 +1323,7 @@ const $ = id => document.getElementById(id);
 // ===================== NAVIGATION =====================
 const pageTitles = {
   dashboard: 'Дашборд', sales: 'Продажи', managers: 'Менеджеры',
-  plan: 'План', settings: 'Настройки', stats: 'Конверсия', report: 'Отчёт'
+  plan: 'План', settings: 'Настройки', stats: 'Конверсия', report: 'Отчёт', history: 'История оплат'
 };
 const tabPages = ['dashboard', 'sales', 'managers'];
 
@@ -1301,6 +1366,7 @@ function loadPage(page) {
     case 'settings': loadSettings(); break;
     case 'stats': loadStats(); break;
     case 'report': loadReport(); break;
+    case 'history': loadHistory(); break;
   }
 }
 
@@ -1388,21 +1454,25 @@ async function fetchManagers() {
 }
 
 async function fetchSales(month, year) {
+  const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+  const endDate = `${year}-${String(month).padStart(2,'0')}-31`;
   if (useLocal) {
     let { data } = await LS.select('sales');
-    const startDate = new Date(year, month - 1, 1).toISOString();
-    const endDate = new Date(year, month, 1).toISOString();
-    data = (data || []).filter(s => s.created_at >= startDate && s.created_at < endDate);
-    data.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    data = (data || []).filter(s => {
+      const d = s.date || (s.created_at && s.created_at.slice(0,10));
+      return d >= startDate && d <= endDate;
+    });
+    data.sort((a, b) => (b.date||b.created_at||'').localeCompare(a.date||a.created_at||''));
     return data;
   }
-  const startDate = new Date(year, month - 1, 1).toISOString();
-  const endDate = new Date(year, month, 1).toISOString();
+  const startISO = new Date(year, month - 1, 1).toISOString();
+  const endISO = new Date(year, month, 1).toISOString();
   const { data, error } = await sb.from('sales').select('*')
-    .gte('created_at', startDate).lt('created_at', endDate)
+    .gte('created_at', startISO).lt('created_at', endISO)
     .order('created_at', { ascending: false });
   if (error) { showToast('Ошибка загрузки продаж', 'error'); return []; }
-  return data || [];
+  // normalize: use date field if available, else slice created_at
+  return (data || []).map(s => ({ ...s, date: s.date || (s.created_at||'').slice(0,10) }));
 }
 
 async function fetchPlans(month, year) {
@@ -1669,6 +1739,7 @@ async function loadSales() {
   // Load sales
   const sales = await fetchSales(m, y);
   state.sales = sales;
+  state._salesMonth = m; state._salesYear = y;
   filterSalesByDate();
 }
 
@@ -1714,9 +1785,17 @@ function toggleAllSales() {
 
 function filterSalesByDate() {
   const selectedDate = $('saleDate').value;
+  if (selectedDate) {
+    const [sy, sm] = selectedDate.split('-').map(Number);
+    if (sm !== state._salesMonth || sy !== state._salesYear) {
+      state._salesMonth = sm; state._salesYear = sy;
+      fetchSales(sm, sy).then(s => { state.sales = s; filterSalesByDate(); });
+      return;
+    }
+  }
   const sales = state.sales || [];
   const filtered = selectedDate
-    ? sales.filter(s => s.created_at && s.created_at.slice(0,10) === selectedDate)
+    ? sales.filter(s => (s.date || (s.created_at && s.created_at.slice(0,10))) === selectedDate)
     : sales;
 
   const dateLabel = selectedDate ? (() => {
@@ -1770,9 +1849,9 @@ async function addSale() {
   if (!managerId) { showToast('Выберите менеджера', 'error'); return; }
   if (!sum || sum <= 0) { showToast('Введите сумму', 'error'); return; }
 
-  const saleDateVal = $('saleDate').value;
-  const created_at = saleDateVal ? new Date(saleDateVal + 'T12:00:00').toISOString() : new Date().toISOString();
-  const row = { manager_id: managerId, segment, trim, color, sum, qty, leasing, created_at };
+  const saleDateVal = $('saleDate').value || new Date().toISOString().slice(0, 10);
+  const created_at = new Date(saleDateVal + 'T12:00:00').toISOString();
+  const row = { manager_id: managerId, segment, trim, color, sum, qty, leasing, created_at, date: saleDateVal };
 
   if (useLocal) {
     await LS.insert('sales', row);
@@ -2087,40 +2166,6 @@ async function savePlans() {
   loadPlan();
 }
 
-async function confirmNewMonth() {
-  const ok = await showModal('Новый месяц', 'Начать новый месяц? Текущие планы будут скопированы на следующий месяц.');
-  if (!ok) return;
-
-  const m = currentMonth(), y = currentYear();
-  let nextM = m + 1, nextY = y;
-  if (nextM > 12) { nextM = 1; nextY++; }
-
-  // Check if next month plans already exist
-  const existing = await fetchPlans(nextM, nextY);
-  if (existing.length) {
-    showToast('Планы на ' + monthNames[nextM - 1] + ' уже существуют', 'error');
-    return;
-  }
-
-  const plans = await fetchPlans(m, y);
-  if (plans.length) {
-    const newPlans = plans.map(p => ({
-      manager_id: p.manager_id, segment: p.segment,
-      month: nextM, year: nextY,
-      sum_plan: p.sum_plan, qty_plan: p.qty_plan
-    }));
-    if (useLocal) {
-      await LS.insert('plans', newPlans);
-    } else {
-      await sb.from('plans').insert(newPlans);
-    }
-  }
-
-  state.planMonth = nextM;
-  state.planYear = nextY;
-  showToast('Новый месяц создан', 'success');
-  loadPlan();
-}
 
 // ===================== SETTINGS =====================
 async function loadSettings() {
@@ -3179,14 +3224,102 @@ async function deleteStat(id) {
 // ===================== TOAST =====================
 let toastTimer;
 function toggleDatePicker(el) {
-  if (el._pickerOpen) {
-    el._pickerOpen = false;
-    el.blur();
+  openDatePicker(el.id, el.type === 'month' ? 'month' : 'date', el.onchange ? el.onchange.name : null);
+}
+
+// ===================== CUSTOM DATE PICKER =====================
+const dp = {
+  mode: 'date', // 'date' | 'month'
+  targetId: null,
+  onChangeFn: null,
+  year: 0, month: 0, selected: null
+};
+const monthNames2 = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const monthShort = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+
+function openDatePicker(inputId, mode, onChangeFn) {
+  const el = $(inputId);
+  if (!el) return;
+  dp.targetId = inputId;
+  dp.mode = mode || 'date';
+  dp.onChangeFn = onChangeFn;
+
+  const now = new Date();
+  if (el.value) {
+    if (dp.mode === 'month') {
+      const [y, m] = el.value.split('-').map(Number);
+      dp.year = y; dp.month = m - 1; dp.selected = el.value;
+    } else {
+      const [y, m, d] = el.value.split('-').map(Number);
+      dp.year = y; dp.month = m - 1; dp.selected = el.value;
+    }
   } else {
-    el._pickerOpen = true;
-    try { el.showPicker(); } catch(e) {}
-    el.addEventListener('blur', () => { el._pickerOpen = false; }, { once: true });
+    dp.year = now.getFullYear(); dp.month = now.getMonth(); dp.selected = null;
   }
+  dpRender();
+  $('dpOverlay').classList.add('open');
+}
+
+function dpRender() {
+  if (dp.mode === 'month') {
+    $('dpTitle').textContent = dp.year;
+    $('dpBody').innerHTML = `<div class="dp-months">${monthShort.map((name, i) => {
+      const isSel = dp.selected === `${dp.year}-${String(i+1).padStart(2,'0')}`;
+      const isCur = new Date().getFullYear() === dp.year && new Date().getMonth() === i;
+      return `<button class="dp-month${isSel?' selected':isCur?' current':''}" onclick="dpSelectMonth(${i})">${name}</button>`;
+    }).join('')}</div>`;
+  } else {
+    $('dpTitle').textContent = `${monthNames2[dp.month]} ${dp.year}`;
+    const firstDay = new Date(dp.year, dp.month, 1).getDay();
+    const offset = (firstDay + 6) % 7;
+    const daysInM = new Date(dp.year, dp.month + 1, 0).getDate();
+    const today = new Date();
+    let days = '<div class="dp-weekdays"><div class="dp-weekday">Пн</div><div class="dp-weekday">Вт</div><div class="dp-weekday">Ср</div><div class="dp-weekday">Чт</div><div class="dp-weekday">Пт</div><div class="dp-weekday">Сб</div><div class="dp-weekday">Вс</div></div><div class="dp-days">';
+    for (let i = 0; i < offset; i++) days += '<div class="dp-day other"></div>';
+    for (let d = 1; d <= daysInM; d++) {
+      const val = `${dp.year}-${String(dp.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const isSel = dp.selected === val;
+      const isToday = today.getFullYear()===dp.year && today.getMonth()===dp.month && today.getDate()===d;
+      days += `<button class="dp-day${isSel?' selected':isToday?' today':''}" onclick="dpSelectDay(${d})">${d}</button>`;
+    }
+    days += '</div>';
+    $('dpBody').innerHTML = days;
+  }
+}
+
+function dpNav(dir) {
+  if (dp.mode === 'month') {
+    dp.year += dir;
+  } else {
+    dp.month += dir;
+    if (dp.month > 11) { dp.month = 0; dp.year++; }
+    if (dp.month < 0) { dp.month = 11; dp.year--; }
+  }
+  dpRender();
+}
+
+function dpSelectDay(d) {
+  const val = `${dp.year}-${String(dp.month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  dp.selected = val;
+  const el = $(dp.targetId);
+  if (el) { el.value = val; el.dispatchEvent(new Event('change')); }
+  dpClose();
+}
+
+function dpSelectMonth(m) {
+  const val = `${dp.year}-${String(m+1).padStart(2,'0')}`;
+  dp.selected = val;
+  const el = $(dp.targetId);
+  if (el) { el.value = val; el.dispatchEvent(new Event('change')); }
+  dpClose();
+}
+
+function dpClose() {
+  $('dpOverlay').classList.remove('open');
+}
+
+function dpOutsideClick(e) {
+  if (e.target === $('dpOverlay')) dpClose();
 }
 
 function formatSumInput(el) {
@@ -3236,6 +3369,94 @@ function adminLogout() {
   document.body.classList.remove('is-admin');
   if (state.page === 'settings' || state.page === 'sales') goTo('dashboard');
   showToast('Вы вышли из режима администратора');
+}
+
+async function deleteHistorySale(id) {
+  const ok = await showModal('Удалить запись?', 'Это действие нельзя отменить');
+  if (!ok) return;
+  const { error } = await sb.from('sales').delete().eq('id', id);
+  if (error) { showToast('Ошибка: ' + error.message, 'error'); return; }
+  showToast('Запись удалена', 'success');
+  loadHistory();
+}
+
+// ===================== HISTORY =====================
+async function loadHistory() {
+  const el = $('historyList');
+  const totalEl = $('historyTotal');
+  if (!el) return;
+
+  // Set default dates (current month)
+  const now = new Date();
+  const fromEl = $('historyFrom');
+  const toEl = $('historyTo');
+  if (!fromEl.value) {
+    fromEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  }
+  if (!toEl.value) {
+    const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    toEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${lastDay}`;
+  }
+  const fromDate = fromEl.value;
+  const toDate = toEl.value;
+
+  // Fill manager filter
+  if (!state.managers.length) state.managers = await fetchManagers();
+  const mgrSel = $('historyManager');
+  if (mgrSel.options.length <= 1) {
+    state.managers.forEach(mgr => {
+      const o = document.createElement('option');
+      o.value = mgr.id; o.textContent = mgr.name;
+      mgrSel.appendChild(o);
+    });
+  }
+
+  const segFilter = $('historySegment').value;
+  const mgrFilter = mgrSel.value;
+
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">Загрузка...</div>';
+
+  let q = sb.from('sales').select('*').gte('date', fromDate).lte('date', toDate).order('date', {ascending: false});
+  if (mgrFilter) q = q.eq('manager_id', mgrFilter);
+  if (segFilter) q = q.eq('segment', segFilter);
+
+  const { data: sales, error } = await q;
+  if (error) { el.innerHTML = '<div class="empty"><div class="empty-text">Ошибка загрузки</div></div>'; return; }
+  if (!sales || !sales.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">💳</div><div class="empty-text">Нет оплат за этот период</div></div>'; totalEl.innerHTML = ''; return; }
+
+  const mgrMap = Object.fromEntries(state.managers.map(m => [m.id, m.name]));
+  const totalSum = sales.reduce((a,s) => a + Number(s.sum||0), 0);
+  const totalQty = sales.reduce((a,s) => a + Number(s.qty||1), 0);
+
+  totalEl.innerHTML = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+    <span style="background:var(--accent);color:#fff;border-radius:8px;padding:4px 12px;font-size:13px;font-weight:700">${fmtNum(totalSum)} сум</span>
+    <span style="background:rgba(27,58,107,0.08);color:var(--accent);border-radius:8px;padding:4px 12px;font-size:13px;font-weight:600">${totalQty} шт</span>
+  </div>`;
+
+  el.innerHTML = sales.map(s => {
+    const [dy, dm, dd] = (s.date||'').split('T')[0].split('-');
+    const dateStr = `${dd}.${dm}.${dy}`;
+    const mgrName = mgrMap[s.manager_id] || '—';
+    const leasBadge = s.is_leasing ? `<span style="font-size:10px;background:rgba(27,58,107,0.12);color:var(--accent);border-radius:4px;padding:2px 6px;margin-left:4px">Лизинг</span>` : '';
+    return `<div style="background:var(--card);border-radius:12px;padding:12px 14px;margin-bottom:8px;border:1px solid var(--sep)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--text)">${fmtNum(s.sum)} сум${leasBadge}</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:2px">${mgrName} · ${s.segment||''} · ${s.trim_name||s.trim||''}</div>
+          ${s.color ? `<div style="font-size:11px;color:var(--text2)">${s.color}</div>` : ''}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          <div style="text-align:right">
+            <div style="font-size:12px;color:var(--text2)">${dateStr}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--text)">${s.qty||1} шт</div>
+          </div>
+          <button class="admin-only" onclick="deleteHistorySale(${s.id})" style="background:none;border:none;cursor:pointer;padding:2px 4px;color:#FF3B30">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ===================== INIT =====================
