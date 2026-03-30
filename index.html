@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, interactive-widget=resizes-visual">
 <title>KIA Motors Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
   --safe-bottom:env(safe-area-inset-bottom,0px);
 }
 html,body{
-  height:100dvh;width:100%;overflow:hidden;
+  height:var(--app-height, 100dvh);width:100%;overflow:hidden;
   font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
   font-variant-numeric:tabular-nums;
   background:var(--bg);color:var(--text);
@@ -114,7 +114,8 @@ html,body{
 /* PAGES */
 .pages{
   position:fixed;
-  top:0;bottom:0;left:0;right:0;
+  top:0;left:0;right:0;
+  height:var(--app-height, 100dvh);
   padding-top:calc(52px + var(--safe-top));
   padding-bottom:calc(60px + var(--safe-bottom));
   overflow:hidden;
@@ -1283,18 +1284,31 @@ if (tg) {
   if (tg.setFullscreen) tg.setFullscreen();
 }
 
-// Скрываем таббар когда открыта клавиатура
-document.addEventListener('focusin', (e) => {
-  const tag = e.target.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-    document.querySelector('.tabbar')?.classList.add('keyboard-open');
+// Фиксируем высоту приложения и скрываем таббар при открытии клавиатуры
+(function() {
+  function setAppHeight() {
+    const h = window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', h + 'px');
   }
-});
-document.addEventListener('focusout', () => {
-  setTimeout(() => {
-    document.querySelector('.tabbar')?.classList.remove('keyboard-open');
-  }, 150);
-});
+  setAppHeight();
+  window.addEventListener('resize', setAppHeight);
+
+  document.addEventListener('focusin', (e) => {
+    const tag = e.target.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+      document.querySelector('.tabbar')?.classList.add('keyboard-open');
+      document.body.classList.add('keyboard-visible');
+    }
+  });
+  document.addEventListener('focusout', () => {
+    setTimeout(() => {
+      if (!document.activeElement || !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+        document.querySelector('.tabbar')?.classList.remove('keyboard-open');
+        document.body.classList.remove('keyboard-visible');
+      }
+    }, 150);
+  });
+})();
 
 let sb = null;
 let useLocal = true; // fallback to localStorage
@@ -3536,16 +3550,16 @@ async function loadHistory() {
   const totalEl = $('historyTotal');
   if (!el) return;
 
-  // Set default dates (current month)
+  // Set default dates (today)
   const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const fromEl = $('historyFrom');
   const toEl = $('historyTo');
   if (!fromEl.value) {
-    fromEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    fromEl.value = todayStr;
   }
   if (!toEl.value) {
-    const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-    toEl.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${lastDay}`;
+    toEl.value = todayStr;
   }
   const fromDate = fromEl.value;
   const toDate = toEl.value;
